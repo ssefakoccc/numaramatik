@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { Shield, Phone, KeyRound, Eye, EyeOff, Loader2, ArrowLeft, CheckCircle2, AlertCircle } from 'lucide-react';
 import Link from 'next/link';
 import { formatDisplayPhone, normalizePhoneNumber } from '@/lib/phone';
@@ -12,24 +12,7 @@ export default function AdminPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [fetchingCurrent, setFetchingCurrent] = useState(true);
-  const [status, setStatus] = useState(null); // { type: 'success' | 'error', message: string }
-
-  const loadActivePhone = useCallback(async (isRefresh = false) => {
-    if (isRefresh) {
-      setFetchingCurrent(true);
-    }
-    try {
-      const res = await fetch('/api/phone', { cache: 'no-store' });
-      const data = await res.json();
-      if (res.ok && data?.success && data?.phoneNumber) {
-        setCurrentPhone(data.phoneNumber);
-      }
-    } catch {
-      // Sessiz hata
-    } finally {
-      setFetchingCurrent(false);
-    }
-  }, []);
+  const [status, setStatus] = useState(null);
 
   useEffect(() => {
     let mounted = true;
@@ -65,7 +48,7 @@ export default function AdminPage() {
     if (!normalized) {
       setStatus({
         type: 'error',
-        message: 'Lütfen geçerli bir telefon numarası girin (Örn: 0544 724 09 92).',
+        message: 'Lütfen geçerli bir Türkiye cep telefonu girin (Örn: 0544 724 09 92).',
       });
       return;
     }
@@ -100,10 +83,10 @@ export default function AdminPage() {
       } else {
         setStatus({
           type: 'error',
-          message: data?.error || 'Güncelleme başarısız oldu. Lütfen şifrenizi kontrol edin.',
+          message: data?.error || 'Güncelleme başarısız oldu. Lütfen bilgilerinizi kontrol edin.',
         });
       }
-    } catch (err) {
+    } catch {
       setStatus({
         type: 'error',
         message: 'Sunucuya bağlanırken bir hata oluştu.',
@@ -122,7 +105,6 @@ export default function AdminPage() {
       />
 
       <div className="w-full max-w-[390px] relative z-10 flex flex-col items-center">
-        
         {/* Back Link */}
         <Link
           href="/"
@@ -134,7 +116,6 @@ export default function AdminPage() {
 
         {/* Main Card */}
         <div className="w-full bg-[#080B12] border border-white/[0.08] rounded-[32px] p-6 sm:p-7 shadow-2xl flex flex-col items-center text-center">
-          
           {/* Emblem */}
           <div className="w-14 h-14 rounded-2xl bg-[#0E131C] border border-white/[0.08] flex items-center justify-center text-[#F7F9FC] mb-4">
             <Shield className="w-6 h-6 text-[#60A5FA]" />

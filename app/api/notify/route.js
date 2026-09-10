@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 export async function POST(req) {
   try {
     const botToken = process.env.TELEGRAM_BOT_TOKEN;
@@ -14,14 +16,16 @@ export async function POST(req) {
     try {
       const body = await req.json();
       if (body?.userAgent) {
-        userAgent = String(body.userAgent).slice(0, 200);
+        // Strip any control characters and truncate
+        userAgent = String(body.userAgent).replace(/[\r\n\t]/g, ' ').slice(0, 160);
       }
     } catch {
-      // body parse error fallback
+      // Body parse fallback
     }
 
     const date = new Date().toLocaleString('tr-TR', { timeZone: 'Europe/Istanbul' });
-    const message = `🔔 *Araç QR Kodu Okutuldu*\n\n📅 *Tarih:* ${date}\n📱 *Cihaz:* ${userAgent}\n\nBirisi aracınızın karekodunu görüntüledi.`;
+    // Plain text message without parse_mode to prevent markdown injection/formatting crashes
+    const message = `🔔 Araç QR Kodu Okutuldu\n\nTarih: ${date}\nCihaz: ${userAgent}\n\nBirisi aracınızın karekodunu görüntüledi.`;
 
     const res = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
       method: 'POST',
@@ -29,7 +33,6 @@ export async function POST(req) {
       body: JSON.stringify({
         chat_id: chatId,
         text: message,
-        parse_mode: 'Markdown',
       }),
       signal: AbortSignal.timeout(5000),
     });
@@ -39,7 +42,7 @@ export async function POST(req) {
     }
 
     return Response.json({ success: true });
-  } catch (error) {
+  } catch {
     return Response.json({ success: false, error: 'Bildirim servisi yanıt vermedi.' }, { status: 200 });
   }
 }

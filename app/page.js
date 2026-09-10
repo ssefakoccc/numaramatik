@@ -1,10 +1,9 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import ContactHero from '@/components/scanner/ContactHero';
 import ContactActions from '@/components/scanner/ContactActions';
 import QuickMessages, { SCENARIOS } from '@/components/scanner/QuickMessages';
-import StatusToast from '@/components/ui/StatusToast';
 import { AlertCircle, RotateCcw } from 'lucide-react';
 import { normalizePhoneNumber } from '@/lib/phone';
 
@@ -14,15 +13,24 @@ export default function ScannerPage() {
   const [error, setError] = useState(null);
   const [copied, setCopied] = useState(false);
   const [selectedMessage, setSelectedMessage] = useState(SCENARIOS[0].text);
+  const activeAbortRef = useRef(null);
 
-  // Fetch active vehicle phone number
+  // Single, reliable phone data fetcher
   const fetchPhoneData = useCallback(async (isRetry = false) => {
-    if (isRetry) {
-      setLoading(true);
-      setError(null);
+    if (activeAbortRef.current) {
+      activeAbortRef.current.abort();
     }
 
     const controller = new AbortController();
+    activeAbortRef.current = controller;
+
+    if (isRetry) {
+      await Promise.resolve();
+      setLoading(true);
+      setError(null);
+      setPhone(null);
+    }
+
     const timeoutId = setTimeout(() => controller.abort(), 7000);
 
     try {
@@ -33,13 +41,18 @@ export default function ScannerPage() {
       clearTimeout(timeoutId);
 
       const data = await res.json();
-      if (res.ok && data?.success && data?.phoneNumber) {
-        setPhone(data.phoneNumber);
+      const validPhone = normalizePhoneNumber(data?.phoneNumber);
+
+      if (res.ok && data?.success && validPhone) {
+        setPhone(validPhone);
+        setError(null);
       } else {
+        setPhone(null);
         setError('İletişim bilgisine şu anda ulaşılamıyor.');
       }
     } catch {
       clearTimeout(timeoutId);
+      setPhone(null);
       setError('İletişim bilgisine şu anda ulaşılamıyor.');
     } finally {
       setLoading(false);
@@ -47,40 +60,13 @@ export default function ScannerPage() {
   }, []);
 
   useEffect(() => {
-    let mounted = true;
+    void (async () => {
+      await fetchPhoneData(false);
+    })();
 
-    async function initialize() {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 7000);
-
-      try {
-        const res = await fetch('/api/phone', {
-          signal: controller.signal,
-          cache: 'no-store',
-        });
-        clearTimeout(timeoutId);
-
-        const data = await res.json();
-        if (!mounted) return;
-
-        if (res.ok && data?.success && data?.phoneNumber) {
-          setPhone(data.phoneNumber);
-        } else {
-          setError('İletişim bilgisine şu anda ulaşılamıyor.');
-        }
-      } catch {
-        clearTimeout(timeoutId);
-        if (mounted) {
-          setError('İletişim bilgisine şu anda ulaşılamıyor.');
-        }
-      } finally {
-        if (mounted) {
-          setLoading(false);
-        }
-      }
-
-      // Fire silent notify once
-      try {
+    // Safe session-guarded silent notification
+    try {
+      if (typeof window !== 'undefined') {
         const alreadySent = sessionStorage.getItem('numaratik_scan_notified');
         if (!alreadySent) {
           sessionStorage.setItem('numaratik_scan_notified', 'true');
@@ -92,15 +78,15 @@ export default function ScannerPage() {
             }),
           }).catch(() => {});
         }
-      } catch {}
-    }
-
-    initialize();
+      }
+    } catch {}
 
     return () => {
-      mounted = false;
+      if (activeAbortRef.current) {
+        activeAbortRef.current.abort();
+      }
     };
-  }, []);
+  }, [fetchPhoneData]);
 
   const handleCopy = () => {
     if (!phone) return;
@@ -133,9 +119,7 @@ export default function ScannerPage() {
       document.body.removeChild(textArea);
       setCopied(true);
       setTimeout(() => setCopied(false), 2200);
-    } catch {
-      // Fallback copy failed
-    }
+    } catch {}
   };
 
   return (
@@ -148,10 +132,8 @@ export default function ScannerPage() {
 
       {/* Main Container */}
       <div className="w-full max-w-[400px] my-auto flex flex-col items-center relative z-10">
-        
         {/* Card Surface */}
         <div className="w-full bg-[#080B12] border border-white/[0.08] rounded-[32px] p-6 sm:p-7 shadow-2xl flex flex-col items-center text-center">
-          
           {/* Header & Emblem */}
           <ContactHero phone={phone} loading={loading} />
 
@@ -179,7 +161,7 @@ export default function ScannerPage() {
               </div>
               <button
                 type="button"
-                onClick={fetchPhoneData}
+                onClick={() => fetchPhoneData(true)}
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/[0.08] hover:bg-white/[0.14] text-xs font-medium text-[#F7F9FC] transition-colors"
               >
                 <RotateCcw className="w-3.5 h-3.5" />
