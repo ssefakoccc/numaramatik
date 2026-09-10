@@ -1,9 +1,39 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Shield, Phone, KeyRound, Eye, EyeOff, Loader2, ArrowLeft, CheckCircle2, AlertCircle } from 'lucide-react';
+import {
+  Shield,
+  Phone,
+  KeyRound,
+  Eye,
+  EyeOff,
+  Loader2,
+  ArrowLeft,
+  CheckCircle2,
+  AlertCircle,
+  History,
+  QrCode,
+  MessageSquare,
+  RefreshCw,
+} from 'lucide-react';
 import Link from 'next/link';
 import { formatDisplayPhone, normalizePhoneNumber } from '@/lib/phone';
+
+function formatEventDate(dateString) {
+  try {
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) return dateString;
+    return new Intl.DateTimeFormat('tr-TR', {
+      timeZone: 'Europe/Istanbul',
+      day: 'numeric',
+      month: 'long',
+      hour: '2-digit',
+      minute: '2-digit',
+    }).format(date);
+  } catch {
+    return dateString;
+  }
+}
 
 export default function AdminPage() {
   const [currentPhone, setCurrentPhone] = useState(null);
@@ -13,6 +43,41 @@ export default function AdminPage() {
   const [loading, setLoading] = useState(false);
   const [fetchingCurrent, setFetchingCurrent] = useState(true);
   const [status, setStatus] = useState(null);
+
+  // Son Hareketler states
+  const [events, setEvents] = useState([]);
+  const [eventsLoading, setEventsLoading] = useState(false);
+  const [eventsLoaded, setEventsLoaded] = useState(false);
+  const [eventsError, setEventsError] = useState(null);
+
+  const handleFetchEvents = async () => {
+    setEventsError(null);
+    if (!secretKey.trim()) {
+      setEventsError('Lütfen yukarıdaki alana admin şifrenizi girin.');
+      return;
+    }
+
+    setEventsLoading(true);
+    try {
+      const res = await fetch('/api/admin/events', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ secretKey: secretKey.trim() }),
+      });
+
+      const data = await res.json();
+      if (res.ok && data?.success) {
+        setEvents(data.events || []);
+        setEventsLoaded(true);
+      } else {
+        setEventsError(data?.error || 'Geçmiş yüklenemedi. Şifrenizi kontrol edin.');
+      }
+    } catch {
+      setEventsError('Geçmiş yüklenirken bir hata oluştu.');
+    } finally {
+      setEventsLoading(false);
+    }
+  };
 
   useEffect(() => {
     let mounted = true;
@@ -210,7 +275,7 @@ export default function AdminPage() {
             </button>
           </form>
 
-          {/* Feedback Status */}
+        {/* Feedback Status */}
           {status && (
             <div
               role="alert"
@@ -228,6 +293,103 @@ export default function AdminPage() {
               <div className="leading-relaxed">{status.message}</div>
             </div>
           )}
+        </div>
+
+        {/* Son Hareketler (Activity History) Card */}
+        <div className="w-full mt-4 bg-[#080B12] border border-white/[0.08] rounded-[32px] p-6 shadow-2xl flex flex-col text-left">
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-2.5">
+              <div className="w-8 h-8 rounded-xl bg-[#0E131C] border border-white/[0.08] flex items-center justify-center text-[#60A5FA]">
+                <History className="w-4 h-4" />
+              </div>
+              <div>
+                <h2 className="text-sm font-semibold tracking-tight text-[#F7F9FC]">
+                  Son Hareketler
+                </h2>
+                <p className="text-[11px] text-[#98A2B3]">
+                  Son 20 okutma ve bildirim kaydı
+                </p>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={handleFetchEvents}
+              disabled={eventsLoading}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#0E131C] hover:bg-[#141A26] border border-white/[0.08] text-xs font-medium text-[#F7F9FC] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {eventsLoading ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin text-[#60A5FA]" />
+              ) : eventsLoaded ? (
+                <RefreshCw className="w-3.5 h-3.5 text-[#98A2B3]" />
+              ) : null}
+              <span>{eventsLoaded ? 'Yenile' : 'Geçmişi görüntüle'}</span>
+            </button>
+          </div>
+
+          {/* Events Error */}
+          {eventsError && (
+            <div
+              role="alert"
+              className="mt-3 p-3 rounded-xl border bg-[#1C1214] border-red-500/30 text-red-200 flex items-start gap-2 text-xs"
+            >
+              <AlertCircle className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
+              <div className="leading-relaxed">{eventsError}</div>
+            </div>
+          )}
+
+          {/* Events Content Area */}
+          <div className="mt-4">
+            {eventsLoading ? (
+              <div className="py-8 flex flex-col items-center justify-center text-[#98A2B3] text-xs gap-2">
+                <Loader2 className="w-5 h-5 animate-spin text-[#60A5FA]" />
+                <span>Kayıtlar getiriliyor...</span>
+              </div>
+            ) : !eventsLoaded ? (
+              <div className="py-6 px-3 rounded-2xl bg-[#0E131C]/60 border border-white/[0.04] text-center text-xs text-[#98A2B3]">
+                Kayıtları listelemek için admin şifrenizi girip{' '}
+                <span className="text-[#F7F9FC] font-medium">“Geçmişi görüntüle”</span> butonuna tıklayın.
+              </div>
+            ) : events.length === 0 ? (
+              <div className="py-8 text-center text-xs text-[#98A2B3]">
+                Kayıtlı hareket bulunamadı.
+              </div>
+            ) : (
+              <div className="space-y-2 max-h-[300px] overflow-y-auto pr-1">
+                {events.map((ev) => {
+                  const isScan = ev.eventType === 'scan';
+                  return (
+                    <div
+                      key={ev.id}
+                      className="p-3 rounded-2xl bg-[#0E131C] border border-white/[0.06] flex items-center justify-between gap-3 text-xs"
+                    >
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <div className="w-7 h-7 rounded-lg bg-white/[0.04] border border-white/[0.06] flex items-center justify-center shrink-0">
+                          {isScan ? (
+                            <QrCode className="w-3.5 h-3.5 text-[#60A5FA]" />
+                          ) : (
+                            <MessageSquare className="w-3.5 h-3.5 text-[#34D399]" />
+                          )}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="font-medium text-[#F7F9FC] truncate">
+                            {isScan ? 'QR okutuldu' : ev.reason || 'Senaryo bildirimi'}
+                          </p>
+                          <p className="text-[11px] text-[#98A2B3] truncate">
+                            {ev.deviceLabel || 'Bilinmiyor'}
+                          </p>
+                        </div>
+                      </div>
+
+                      <span className="text-[11px] font-mono text-[#98A2B3] shrink-0 text-right whitespace-nowrap">
+                        {formatEventDate(ev.createdAt)}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Minimal Footer */}

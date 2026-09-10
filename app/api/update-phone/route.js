@@ -1,16 +1,10 @@
-import { getAdminServerClient } from '@/lib/supabase/admin-server';
+import { verifyAdminAuth } from '@/lib/security/admin-auth';
 import { normalizePhoneNumber } from '@/lib/phone';
 
 export const dynamic = 'force-dynamic';
 
 export async function POST(req) {
   try {
-    const adminSecret = process.env.ADMIN_SECRET_KEY;
-    if (!adminSecret || adminSecret === 'gizli_sifren') {
-      console.error('[Update Phone API] ADMIN_SECRET_KEY yapılandırılmamış.');
-      return Response.json({ success: false, error: 'Yetkisiz erişim.' }, { status: 401 });
-    }
-
     let body;
     try {
       body = await req.json();
@@ -20,10 +14,16 @@ export async function POST(req) {
 
     const { phone, secretKey } = body || {};
 
-    if (!secretKey || typeof secretKey !== 'string' || secretKey !== adminSecret) {
-      return Response.json({ success: false, error: 'Yetkisiz erişim.' }, { status: 401 });
+    // 1. Verify admin credentials with rate-limiting & timing-safe check
+    const authResult = await verifyAdminAuth(req, secretKey);
+    if (!authResult.authorized) {
+      return Response.json(
+        { success: false, error: authResult.error },
+        { status: authResult.status }
+      );
     }
 
+    // 2. Validate Turkey phone number strictly
     const normalized = normalizePhoneNumber(phone);
     if (!normalized) {
       return Response.json(
@@ -32,7 +32,7 @@ export async function POST(req) {
       );
     }
 
-    const supabase = getAdminServerClient();
+    const supabase = authResult.supabase;
     if (!supabase) {
       return Response.json(
         { success: false, error: 'Veritabanı servisi yapılandırılmamış.' },
@@ -40,6 +40,7 @@ export async function POST(req) {
       );
     }
 
+    // 3. Update vehicle_card
     const { data, error } = await supabase
       .from('vehicle_card')
       .update({ phone_number: normalized })
@@ -47,7 +48,6 @@ export async function POST(req) {
       .select('phone_number');
 
     if (error || !data || data.length === 0) {
-      console.error('[Update Phone API] Güncelleme başarısız veya satır bulunamadı.');
       return Response.json(
         { success: false, error: 'İşlem gerçekleştirilemedi.' },
         { status: 404 }

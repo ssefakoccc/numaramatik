@@ -48,7 +48,7 @@ export default function QuickMessages({ selectedText, onSelect }) {
             <button
               key={item.id}
               type="button"
-              onClick={() => onSelect(item.text)}
+              onClick={() => onSelect(item.text, item.title)}
               aria-pressed={isSelected}
               className={`p-3 rounded-2xl text-left transition-all duration-150 flex flex-col gap-2 border ${
                 isSelected

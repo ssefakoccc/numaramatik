@@ -74,7 +74,7 @@ export default function ScannerPage() {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              userAgent: navigator.userAgent || 'Mobil Tarayıcı',
+              type: 'scan',
             }),
           }).catch(() => {});
         }
@@ -121,6 +121,22 @@ export default function ScannerPage() {
       setTimeout(() => setCopied(false), 2200);
     } catch {}
   };
+
+  const handleScenarioSelect = useCallback((text, title) => {
+    setSelectedMessage(text);
+    if (!title) return;
+
+    try {
+      fetch('/api/notify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'scenario',
+          reason: title,
+        }),
+      }).catch(() => {});
+    } catch {}
+  }, []);
 
   return (
     <main className="min-h-screen bg-[#05070B] text-[#F7F9FC] flex flex-col justify-between items-center px-4 py-6 sm:p-8 relative overflow-x-hidden">
@@ -185,7 +201,7 @@ export default function ScannerPage() {
           {!loading && !error && (
             <QuickMessages
               selectedText={selectedMessage}
-              onSelect={(text) => setSelectedMessage(text)}
+              onSelect={handleScenarioSelect}
             />
           )}
         </div>
