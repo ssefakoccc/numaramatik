@@ -1,44 +1,110 @@
 'use client';
 
-import { useState } from 'react';
-import { Lock, Phone, KeyRound, Shield, CheckCircle2, AlertCircle, ArrowLeft, Loader2, Sparkles } from 'lucide-react';
+import { useState, useEffect, useCallback } from 'react';
+import { Shield, Phone, KeyRound, Eye, EyeOff, Loader2, ArrowLeft, CheckCircle2, AlertCircle } from 'lucide-react';
 import Link from 'next/link';
+import { formatDisplayPhone, normalizePhoneNumber } from '@/lib/phone';
 
 export default function AdminPage() {
-  const [phone, setPhone] = useState('');
+  const [currentPhone, setCurrentPhone] = useState(null);
+  const [newPhone, setNewPhone] = useState('');
   const [secretKey, setSecretKey] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState(null); // { type: 'success' | 'error', message: string }
+  const [fetchingCurrent, setFetchingCurrent] = useState(true);
+  const [status, setStatus] = useState(null); // { type: 'success' | 'error', message: string }
+
+  const loadActivePhone = useCallback(async (isRefresh = false) => {
+    if (isRefresh) {
+      setFetchingCurrent(true);
+    }
+    try {
+      const res = await fetch('/api/phone', { cache: 'no-store' });
+      const data = await res.json();
+      if (res.ok && data?.success && data?.phoneNumber) {
+        setCurrentPhone(data.phoneNumber);
+      }
+    } catch {
+      // Sessiz hata
+    } finally {
+      setFetchingCurrent(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    let mounted = true;
+
+    async function init() {
+      try {
+        const res = await fetch('/api/phone', { cache: 'no-store' });
+        const data = await res.json();
+        if (mounted && res.ok && data?.success && data?.phoneNumber) {
+          setCurrentPhone(data.phoneNumber);
+        }
+      } catch {
+        // Sessiz hata
+      } finally {
+        if (mounted) {
+          setFetchingCurrent(false);
+        }
+      }
+    }
+
+    init();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setStatus(null);
+
+    const normalized = normalizePhoneNumber(newPhone);
+    if (!normalized) {
+      setStatus({
+        type: 'error',
+        message: 'Lütfen geçerli bir telefon numarası girin (Örn: 0544 724 09 92).',
+      });
+      return;
+    }
+
+    if (!secretKey.trim()) {
+      setStatus({
+        type: 'error',
+        message: 'Lütfen admin şifrenizi girin.',
+      });
+      return;
+    }
+
     setLoading(true);
-    setResult(null);
 
     try {
       const res = await fetch('/api/update-phone', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ phone, secretKey }),
+        body: JSON.stringify({ phone: normalized, secretKey: secretKey.trim() }),
       });
 
       const data = await res.json();
 
-      if (res.ok && data.success) {
-        setResult({
-          type: 'success',
-          message: 'Telefon numarası başarıyla güncellendi! Yeni numara artık QR taramalarında geçerli.',
-        });
-        setPhone('');
+      if (res.ok && data?.success) {
+        setCurrentPhone(data.phoneNumber || normalized);
+        setNewPhone('');
         setSecretKey('');
+        setStatus({
+          type: 'success',
+          message: 'Telefon numarası başarıyla güncellendi. Yeni numara yayında.',
+        });
       } else {
-        setResult({
+        setStatus({
           type: 'error',
-          message: data.error || 'Şifre hatalı veya işlem gerçekleştirilemedi.',
+          message: data?.error || 'Güncelleme başarısız oldu. Lütfen şifrenizi kontrol edin.',
         });
       }
     } catch (err) {
-      setResult({
+      setStatus({
         type: 'error',
         message: 'Sunucuya bağlanırken bir hata oluştu.',
       });
@@ -48,86 +114,109 @@ export default function AdminPage() {
   };
 
   return (
-    <main className="min-h-screen bg-[#030712] text-white flex flex-col items-center justify-center p-4 sm:p-6 relative overflow-hidden">
-      {/* Dynamic Ambient Mesh Glow */}
-      <div className="absolute top-[-10%] left-1/2 -translate-x-1/2 w-[500px] h-[500px] bg-gradient-to-b from-emerald-500/10 via-teal-500/5 to-transparent rounded-full blur-[100px] pointer-events-none" />
+    <main className="min-h-screen bg-[#05070B] text-[#F7F9FC] flex flex-col items-center justify-center px-4 py-8 relative overflow-x-hidden">
+      {/* Subtle background spotlight */}
+      <div
+        className="absolute top-0 left-1/2 -translate-x-1/2 w-[500px] h-[300px] bg-gradient-to-b from-[#3B82F6]/[0.04] to-transparent rounded-full blur-3xl pointer-events-none"
+        aria-hidden="true"
+      />
 
-      <div className="w-full max-w-md relative z-10 flex flex-col items-center">
+      <div className="w-full max-w-[390px] relative z-10 flex flex-col items-center">
         
-        {/* Back link */}
+        {/* Back Link */}
         <Link
           href="/"
-          className="self-start mb-6 inline-flex items-center gap-2 text-xs font-medium text-zinc-400 hover:text-white transition-colors glass-pill px-3 py-1.5 rounded-full"
+          className="self-start mb-5 inline-flex items-center gap-1.5 text-xs text-[#98A2B3] hover:text-[#F7F9FC] transition-colors"
         >
           <ArrowLeft className="w-3.5 h-3.5" />
-          <span>Kullanıcı Sayfasına Dön</span>
+          <span>Ana Sayfaya Dön</span>
         </Link>
 
-        {/* Central Glass Card */}
-        <div className="w-full glass-card rounded-[32px] p-6 sm:p-8 shadow-2xl shadow-black/80 flex flex-col items-center relative overflow-hidden">
+        {/* Main Card */}
+        <div className="w-full bg-[#080B12] border border-white/[0.08] rounded-[32px] p-6 sm:p-7 shadow-2xl flex flex-col items-center text-center">
           
-          <div className="absolute top-0 inset-x-0 h-[2px] bg-gradient-to-r from-transparent via-emerald-500/50 to-transparent" />
-
-          {/* Admin Icon Badge */}
-          <div className="relative mb-5">
-            <div className="w-16 h-16 rounded-2xl bg-zinc-900/90 border border-zinc-800 flex items-center justify-center text-emerald-400 shadow-inner">
-              <Shield className="w-8 h-8" />
-            </div>
-            <div className="absolute -bottom-1 -right-1 bg-emerald-500 text-zinc-950 rounded-full p-1 border-2 border-zinc-900">
-              <Lock className="w-3.5 h-3.5" />
-            </div>
+          {/* Emblem */}
+          <div className="w-14 h-14 rounded-2xl bg-[#0E131C] border border-white/[0.08] flex items-center justify-center text-[#F7F9FC] mb-4">
+            <Shield className="w-6 h-6 text-[#60A5FA]" />
           </div>
 
-          <h1 className="text-2xl font-bold tracking-tight text-white mb-1">
-            Yönetim Paneli
+          <h1 className="text-xl font-semibold tracking-tight text-[#F7F9FC] mb-1">
+            Numara yönetimi
           </h1>
-          <p className="text-zinc-400 text-xs text-center mb-6">
-            QR kodunuzun yönlendireceği aktif telefon numarasını güncelleyin.
+          <p className="text-xs text-[#98A2B3] max-w-[280px] leading-relaxed mb-5">
+            QR kodunuzun yönlendirdiği aktif telefon numarasını güvenli şekilde güncelleyin.
           </p>
 
-          <form onSubmit={handleSubmit} className="w-full space-y-4">
+          {/* Current Active Phone Box */}
+          <div className="w-full p-3 rounded-2xl bg-[#0E131C] border border-white/[0.06] flex items-center justify-between text-xs mb-5">
+            <span className="text-[#98A2B3]">Aktif Numara:</span>
+            {fetchingCurrent ? (
+              <span className="h-4 w-28 bg-white/[0.05] rounded animate-pulse" />
+            ) : currentPhone ? (
+              <span className="font-mono font-medium text-[#60A5FA] tracking-wider">
+                {formatDisplayPhone(currentPhone)}
+              </span>
+            ) : (
+              <span className="text-white/40">Kayıtlı numara yok</span>
+            )}
+          </div>
+
+          {/* Update Form */}
+          <form onSubmit={handleSubmit} className="w-full space-y-4 text-left">
             <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-zinc-400 mb-1.5 px-1">
+              <label htmlFor="new-phone-input" className="block text-[11px] font-semibold uppercase tracking-wider text-[#98A2B3] mb-1.5 px-1">
                 Yeni Telefon Numarası
               </label>
               <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-zinc-500">
+                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-[#98A2B3]">
                   <Phone className="w-4 h-4" />
                 </div>
                 <input
+                  id="new-phone-input"
                   type="tel"
-                  placeholder="+90 5XX XXX XX XX"
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  className="w-full pl-10 pr-4 py-3 rounded-2xl bg-zinc-900/90 border border-zinc-800 text-white placeholder-zinc-500 focus:outline-none focus:border-emerald-500/80 focus:ring-1 focus:ring-emerald-500/50 transition-all text-sm"
+                  placeholder="0544 724 09 92"
+                  value={newPhone}
+                  onChange={(e) => setNewPhone(e.target.value)}
+                  className="w-full pl-10 pr-4 py-3 rounded-2xl bg-[#0E131C] border border-white/[0.08] text-[#F7F9FC] placeholder-[#667085] focus:outline-none focus:border-[#3B82F6] focus:ring-1 focus:ring-[#3B82F6] transition-colors text-sm font-mono"
                   required
+                  disabled={loading}
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-zinc-400 mb-1.5 px-1">
+              <label htmlFor="admin-secret-input" className="block text-[11px] font-semibold uppercase tracking-wider text-[#98A2B3] mb-1.5 px-1">
                 Admin Şifresi
               </label>
               <div className="relative">
-                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-zinc-500">
+                <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-[#98A2B3]">
                   <KeyRound className="w-4 h-4" />
                 </div>
                 <input
-                  type="password"
-                  placeholder="Gizli admin şifreniz"
+                  id="admin-secret-input"
+                  type={showPassword ? 'text' : 'password'}
+                  placeholder="Admin gizli şifreniz"
                   value={secretKey}
                   onChange={(e) => setSecretKey(e.target.value)}
-                  className="w-full pl-10 pr-4 py-3 rounded-2xl bg-zinc-900/90 border border-zinc-800 text-white placeholder-zinc-500 focus:outline-none focus:border-emerald-500/80 focus:ring-1 focus:ring-emerald-500/50 transition-all text-sm"
+                  className="w-full pl-10 pr-10 py-3 rounded-2xl bg-[#0E131C] border border-white/[0.08] text-[#F7F9FC] placeholder-[#667085] focus:outline-none focus:border-[#3B82F6] focus:ring-1 focus:ring-[#3B82F6] transition-colors text-sm"
                   required
+                  disabled={loading}
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-[#98A2B3] hover:text-[#F7F9FC]"
+                  aria-label={showPassword ? 'Şifreyi gizle' : 'Şifreyi göster'}
+                >
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
               </div>
             </div>
 
             <button
               type="submit"
               disabled={loading}
-              className="w-full mt-2 py-3.5 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-400 hover:to-teal-400 text-zinc-950 font-black rounded-2xl flex items-center justify-center gap-2 transition-all active:scale-[0.98] shadow-lg shadow-emerald-950/50 disabled:opacity-50"
+              className="w-full h-12 mt-1 rounded-2xl bg-[#F7F9FC] hover:bg-white text-[#05070B] font-medium text-sm flex items-center justify-center gap-2 transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
             >
               {loading ? (
                 <>
@@ -135,31 +224,35 @@ export default function AdminPage() {
                   <span>Güncelleniyor...</span>
                 </>
               ) : (
-                <>
-                  <Sparkles className="w-4 h-4 fill-current" />
-                  <span>NUMARAYI GÜNCELLE</span>
-                </>
+                <span>Numarayı güncelle</span>
               )}
             </button>
           </form>
 
-          {result && (
+          {/* Feedback Status */}
+          {status && (
             <div
-              className={`w-full mt-4 p-3.5 rounded-2xl border flex items-start gap-3 text-xs text-left animate-float ${
-                result.type === 'success'
-                  ? 'bg-emerald-950/30 border-emerald-500/30 text-emerald-300'
-                  : 'bg-rose-950/30 border-rose-500/30 text-rose-300'
+              role="alert"
+              className={`w-full mt-4 p-3 rounded-xl border flex items-start gap-2.5 text-xs text-left ${
+                status.type === 'success'
+                  ? 'bg-[#0E131C] border-[#3B82F6]/30 text-[#F7F9FC]'
+                  : 'bg-[#1C1214] border-red-500/30 text-red-200'
               }`}
             >
-              {result.type === 'success' ? (
-                <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />
+              {status.type === 'success' ? (
+                <CheckCircle2 className="w-4 h-4 text-[#60A5FA] shrink-0 mt-0.5" />
               ) : (
-                <AlertCircle className="w-5 h-5 text-rose-400 shrink-0 mt-0.5" />
+                <AlertCircle className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
               )}
-              <div className="leading-relaxed">{result.message}</div>
+              <div className="leading-relaxed">{status.message}</div>
             </div>
           )}
         </div>
+
+        {/* Minimal Footer */}
+        <footer className="mt-6 text-[11px] text-[#667085]">
+          <span>Numaratik Yönetim Konsolu</span>
+        </footer>
       </div>
     </main>
   );
