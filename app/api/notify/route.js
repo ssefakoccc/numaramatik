@@ -10,7 +10,37 @@ const ALLOWED_SCENARIO_REASONS = new Set([
   'Acil iletişim',
 ]);
 
+/**
+ * Lightweight RPC caller using native fetch with connection reuse.
+ */
+async function callAtomicDedupRpc(params) {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!url || !serviceKey || !url.startsWith('http')) return null;
+
+  try {
+    const res = await fetch(`${url}/rest/v1/rpc/log_vehicle_event_if_not_deduped`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': serviceKey,
+        'Authorization': `Bearer ${serviceKey}`,
+      },
+      body: JSON.stringify(params),
+      signal: AbortSignal.timeout(3000),
+    });
+
+    if (!res.ok) return null;
+    return await res.json();
+  } catch {
+    return null;
+  }
+}
+
 export async function POST(req) {
+  const startTotal = performance.now();
+  const timings = { fpMs: 0, dbMs: 0, tgMs: 0, insertMs: 0, totalMs: 0 };
+
   try {
     const botToken = process.env.TELEGRAM_BOT_TOKEN;
     const chatId = process.env.TELEGRAM_CHAT_ID;
@@ -42,51 +72,97 @@ export async function POST(req) {
       }
     }
 
+    // 1. Fingerprint calculation & timing
+    const startFp = performance.now();
     const { hash, deviceLabel } = getRequestFingerprint(req);
+    timings.fpMs = +(performance.now() - startFp).toFixed(1);
+
     const date = new Date().toLocaleString('tr-TR', { timeZone: 'Europe/Istanbul' });
-    const supabase = getAdminServerClient();
 
-    // Check rate limit / deduplication from vehicle_events only when hash is available
-    if (supabase && hash) {
-      try {
-        if (type === 'scan') {
-          // 5 minutes scan deduplication
-          const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
-          const { data: recentScan, error: scanErr } = await supabase
-            .from('vehicle_events')
-            .select('id')
-            .eq('vehicle_slug', 'arac')
-            .eq('fingerprint_hash', hash)
-            .eq('event_type', 'scan')
-            .gte('created_at', fiveMinutesAgo)
-            .limit(1);
+    // 2. Fast-path: Try Atomic RPC (single roundtrip check + insert)
+    let usedAtomicRpc = false;
 
-          if (!scanErr && recentScan && recentScan.length > 0) {
-            return Response.json({ success: true, deduplicated: true }, { status: 200 });
-          }
-        } else if (type === 'scenario') {
-          // 60 seconds scenario deduplication for identical reason
-          const sixtySecondsAgo = new Date(Date.now() - 60 * 1000).toISOString();
-          const { data: recentScenario, error: scenarioErr } = await supabase
-            .from('vehicle_events')
-            .select('id')
-            .eq('vehicle_slug', 'arac')
-            .eq('fingerprint_hash', hash)
-            .eq('event_type', 'scenario')
-            .eq('reason', reason)
-            .gte('created_at', sixtySecondsAgo)
-            .limit(1);
+    if (hash) {
+      const startDb = performance.now();
+      const rpcResult = await callAtomicDedupRpc({
+        p_slug: 'arac',
+        p_event_type: type,
+        p_reason: type === 'scenario' ? reason : null,
+        p_fingerprint_hash: hash,
+        p_device_label: deviceLabel,
+      });
 
-          if (!scenarioErr && recentScenario && recentScenario.length > 0) {
-            return Response.json({ success: true, deduplicated: true }, { status: 200 });
-          }
+      if (rpcResult && typeof rpcResult === 'object' && ('allowed' in rpcResult)) {
+        usedAtomicRpc = true;
+        timings.dbMs = +(performance.now() - startDb).toFixed(1);
+
+        if (!rpcResult.allowed && rpcResult.deduplicated) {
+          timings.totalMs = +(performance.now() - startTotal).toFixed(1);
+          const isDev = process.env.NODE_ENV === 'development';
+          return Response.json(
+            isDev ? { success: true, deduplicated: true, timings } : { success: true, deduplicated: true },
+            { status: 200 }
+          );
         }
-      } catch {
-        // If vehicle_events does not exist yet, continue gracefully
       }
     }
 
-    // Prepare message
+    // 3. Fallback: Standard query if RPC is not yet available in Supabase
+    if (!usedAtomicRpc && hash) {
+      const startDbFallback = performance.now();
+      const supabase = getAdminServerClient();
+      if (supabase) {
+        try {
+          if (type === 'scan') {
+            const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+            const { data: recentScan, error: scanErr } = await supabase
+              .from('vehicle_events')
+              .select('id')
+              .eq('vehicle_slug', 'arac')
+              .eq('fingerprint_hash', hash)
+              .eq('event_type', 'scan')
+              .gte('created_at', fiveMinutesAgo)
+              .limit(1);
+
+            if (!scanErr && recentScan && recentScan.length > 0) {
+              timings.dbMs = +(performance.now() - startDbFallback).toFixed(1);
+              timings.totalMs = +(performance.now() - startTotal).toFixed(1);
+              const isDev = process.env.NODE_ENV === 'development';
+              return Response.json(
+                isDev ? { success: true, deduplicated: true, timings } : { success: true, deduplicated: true },
+                { status: 200 }
+              );
+            }
+          } else if (type === 'scenario') {
+            const sixtySecondsAgo = new Date(Date.now() - 60 * 1000).toISOString();
+            const { data: recentScenario, error: scenarioErr } = await supabase
+              .from('vehicle_events')
+              .select('id')
+              .eq('vehicle_slug', 'arac')
+              .eq('fingerprint_hash', hash)
+              .eq('event_type', 'scenario')
+              .eq('reason', reason)
+              .gte('created_at', sixtySecondsAgo)
+              .limit(1);
+
+            if (!scenarioErr && recentScenario && recentScenario.length > 0) {
+              timings.dbMs = +(performance.now() - startDbFallback).toFixed(1);
+              timings.totalMs = +(performance.now() - startTotal).toFixed(1);
+              const isDev = process.env.NODE_ENV === 'development';
+              return Response.json(
+                isDev ? { success: true, deduplicated: true, timings } : { success: true, deduplicated: true },
+                { status: 200 }
+              );
+            }
+          }
+        } catch {
+          // Graceful fallback
+        }
+      }
+      timings.dbMs = +(performance.now() - startDbFallback).toFixed(1);
+    }
+
+    // 4. Prepare message
     let message = '';
     if (type === 'scenario') {
       message = `⚠️ Araç Bildirimi\nSebep: ${reason}\nTarih: ${date}\nCihaz: ${deviceLabel}`;
@@ -94,7 +170,8 @@ export async function POST(req) {
       message = `🔔 Araç QR Kodu Okutuldu\n\nTarih: ${date}\nCihaz: ${deviceLabel}\n\nBirisi aracınızın karekodunu görüntüledi.`;
     }
 
-    // Send Telegram message
+    // 5. Send Telegram Message immediately
+    const startTg = performance.now();
     const res = await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -102,36 +179,60 @@ export async function POST(req) {
         chat_id: chatId,
         text: message,
       }),
-      signal: AbortSignal.timeout(5000),
+      signal: AbortSignal.timeout(4000),
     });
+    timings.tgMs = +(performance.now() - startTg).toFixed(1);
 
     if (!res.ok) {
+      timings.totalMs = +(performance.now() - startTotal).toFixed(1);
+      const isDev = process.env.NODE_ENV === 'development';
       return Response.json(
-        { success: false, error: 'Telegram bildirim iletimi başarısız.' },
+        isDev ? { success: false, error: 'Telegram bildirim iletimi başarısız.', timings } : { success: false, error: 'Telegram bildirim iletimi başarısız.' },
         { status: 200 }
       );
     }
 
-    // Record successful event in vehicle_events (graceful fallback)
-    if (supabase && hash) {
-      try {
-        const { error: insertErr } = await supabase.from('vehicle_events').insert({
-          vehicle_slug: 'arac',
-          event_type: type,
-          reason: type === 'scenario' ? reason : null,
-          fingerprint_hash: hash,
-          device_label: deviceLabel,
-        });
-        if (insertErr) {
-          console.error('[Vehicle Events] Olay kaydı veritabanına yazılamadı.');
+    // 6. If fallback was used, record event now
+    if (!usedAtomicRpc && hash) {
+      const startInsert = performance.now();
+      const supabase = getAdminServerClient();
+      if (supabase) {
+        try {
+          const { error: insertErr } = await supabase.from('vehicle_events').insert({
+            vehicle_slug: 'arac',
+            event_type: type,
+            reason: type === 'scenario' ? reason : null,
+            fingerprint_hash: hash,
+            device_label: deviceLabel,
+          });
+          if (insertErr) {
+            console.error('[Vehicle Events] Olay kaydı veritabanına yazılamadı.');
+          }
+        } catch {
+          // Ignore DB insert failure if migration not yet applied
         }
-      } catch {
-        // Ignore DB insert failure if migration not yet applied
       }
+      timings.insertMs = +(performance.now() - startInsert).toFixed(1);
     }
 
-    return Response.json({ success: true });
+    const isDev = process.env.NODE_ENV === 'development';
+
+    if (isDev) {
+      console.log(`[Notify Timings] Total: ${timings.totalMs}ms | FP: ${timings.fpMs}ms | DB: ${timings.dbMs}ms | TG: ${timings.tgMs}ms | Insert: ${timings.insertMs}ms`);
+    }
+
+    const payload = { success: true };
+    if (isDev) {
+      payload.timings = timings;
+    }
+    return Response.json(payload, { status: 200 });
   } catch {
-    return Response.json({ success: false, error: 'Bildirim servisi yanıt vermedi.' }, { status: 200 });
+    timings.totalMs = +(performance.now() - startTotal).toFixed(1);
+    const isDev = process.env.NODE_ENV === 'development';
+    const payload = { success: false, error: 'Bildirim servisi yanıt vermedi.' };
+    if (isDev) {
+      payload.timings = timings;
+    }
+    return Response.json(payload, { status: 200 });
   }
 }

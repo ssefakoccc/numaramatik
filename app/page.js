@@ -64,23 +64,6 @@ export default function ScannerPage() {
       await fetchPhoneData(false);
     })();
 
-    // Safe session-guarded silent notification
-    try {
-      if (typeof window !== 'undefined') {
-        const alreadySent = sessionStorage.getItem('numaratik_scan_notified');
-        if (!alreadySent) {
-          sessionStorage.setItem('numaratik_scan_notified', 'true');
-          fetch('/api/notify', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              type: 'scan',
-            }),
-          }).catch(() => {});
-        }
-      }
-    } catch {}
-
     return () => {
       if (activeAbortRef.current) {
         activeAbortRef.current.abort();
@@ -134,12 +117,19 @@ export default function ScannerPage() {
           type: 'scenario',
           reason: title,
         }),
+        keepalive: true,
       }).catch(() => {});
     } catch {}
   }, []);
 
   return (
     <main className="min-h-screen bg-[#05070B] text-[#F7F9FC] flex flex-col justify-between items-center px-4 py-6 sm:p-8 relative overflow-x-hidden">
+      {/* Instant Early Scan Notification Trigger */}
+      <script
+        dangerouslySetInnerHTML={{
+          __html: `(function(){try{if(window.location.pathname!=='/')return;if(sessionStorage.getItem('numaratik_scan_notified')==='1')return;if(window.__numaratik_scanning)return;window.__numaratik_scanning=true;function sendScan(retry){fetch('/api/notify',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({type:'scan'}),keepalive:true}).then(function(res){if(res.ok){try{sessionStorage.setItem('numaratik_scan_notified','1');}catch(e){}}else if(retry){setTimeout(function(){sendScan(false);},1500);}}).catch(function(){if(retry){setTimeout(function(){sendScan(false);},1500);}});}sendScan(true);}catch(e){}})();`,
+        }}
+      />
       {/* Subtle radial spotlight */}
       <div
         className="absolute top-0 left-1/2 -translate-x-1/2 w-[500px] h-[300px] bg-gradient-to-b from-[#3B82F6]/[0.05] via-[#141A24]/[0.02] to-transparent rounded-full blur-3xl pointer-events-none"
