@@ -24,7 +24,6 @@ import {
 import Link from "next/link";
 import { formatDisplayPhone, normalizePhoneNumber } from "@/lib/phone";
 import QRCardDesigner from "@/components/qr/QRCardDesigner";
-import CustomerQRGenerator from "@/components/admin/CustomerQRGenerator";
 import { setStoredOwnerSlug, clearStoredOwnerSlug } from "@/lib/useOwnerSlug";
 
 function formatEventDate(dateString) {
@@ -433,11 +432,6 @@ export default function AdminCardView({ slug = "arac" }) {
               phone={currentPhone}
               displayName={displayName}
             />
-          </div>
-
-          {/* Customer / New Vehicle QR Generator */}
-          <div className="w-full mb-6">
-            <CustomerQRGenerator slug={slug} secretKey={secretKey} />
           </div>
 
           {/* Current Active Phone Box */}

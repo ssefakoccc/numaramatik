@@ -2,85 +2,125 @@
 
 import { useState, useEffect, useRef } from "react";
 import QRCode from "qrcode";
-import { Download, Copy, Check, Eye, QrCode, AlertCircle, FileText, Image as ImageIcon } from "lucide-react";
+import { Download, Copy, Check, QrCode, AlertCircle, FileText, Image as ImageIcon } from "lucide-react";
 import { formatDisplayPhone } from "@/lib/phone";
 
 /**
- * Available Design Themes for QR Card
+ * Design Themes for QR Card matching the official Numaratik visual template.
  */
 export const CARD_THEMES = [
   {
     id: "dark",
     name: "Numaratik Gece",
-    desc: "Bizimki gibi",
-    headerColor: "#3B82F6",
-    subColor: "#98A2B3",
-    cardBg: "#080B12",
-    qrPadBg: "#FFFFFF",
-    textColor: "#F7F9FC",
-    borderColor: "#1E293B",
-    accentDot: "bg-[#3B82F6] ring-2 ring-blue-400/40",
-    pdfBg: [0.03, 0.04, 0.07],
-    pdfBorder: [0.12, 0.16, 0.23],
-    pdfTitle: [0.23, 0.51, 0.96],
-    pdfSub: [0.60, 0.64, 0.70],
-    pdfPhone: [0.97, 0.98, 0.99],
+    desc: "Orijinal Tasarım",
+    cardBg: "#080E1A",
+    borderColor: "#162544",
+    accentBar: "#3B82F6",
+    dotOuter: "#1D4ED8",
+    dotInner: "#38BDF8",
+    brandColor: "#FFFFFF",
+    line1Color: "#FFFFFF",
+    headerColor: "#38BDF8",
+    subColor: "#94A3B8",
+    pillBg: "#0A1322",
+    pillBorder: "#162544",
+    textColor: "#FFFFFF",
+    accentDot: "bg-[#38BDF8] ring-2 ring-blue-500/40",
+    pdfBg: [0.03, 0.05, 0.10],
+    pdfBorder: [0.09, 0.15, 0.27],
+    pdfBar: [0.23, 0.51, 0.96],
+    pdfLine1: [1.0, 1.0, 1.0],
+    pdfLine2: [0.22, 0.74, 0.97],
+    pdfSub: [0.58, 0.64, 0.72],
+    pdfPillBg: [0.04, 0.07, 0.13],
+    pdfPillBorder: [0.09, 0.15, 0.27],
+    pdfPhone: [1.0, 1.0, 1.0],
   },
   {
     id: "classic",
     name: "Klasik Beyaz",
     desc: "Baskı dostu",
-    headerColor: "#111827",
-    subColor: "#6B7280",
     cardBg: "#FFFFFF",
-    qrPadBg: "#FFFFFF",
-    textColor: "#111827",
     borderColor: "#E5E7EB",
+    accentBar: "#111827",
+    dotOuter: "#9CA3AF",
+    dotInner: "#111827",
+    brandColor: "#111827",
+    line1Color: "#111827",
+    headerColor: "#2563EB",
+    subColor: "#6B7280",
+    pillBg: "#F3F4F6",
+    pillBorder: "#E5E7EB",
+    textColor: "#111827",
     accentDot: "bg-gray-100 border border-gray-400",
     pdfBg: [1, 1, 1],
     pdfBorder: [0.90, 0.91, 0.92],
-    pdfTitle: [0.07, 0.09, 0.15],
+    pdfBar: [0.07, 0.09, 0.15],
+    pdfLine1: [0.07, 0.09, 0.15],
+    pdfLine2: [0.15, 0.39, 0.92],
     pdfSub: [0.42, 0.45, 0.50],
+    pdfPillBg: [0.95, 0.96, 0.96],
+    pdfPillBorder: [0.90, 0.91, 0.92],
     pdfPhone: [0.07, 0.09, 0.15],
   },
   {
     id: "blue",
     name: "Safir Mavisi",
-    desc: "Modern mavi",
+    desc: "Derin okyanus",
+    cardBg: "#0B1528",
+    borderColor: "#1E3A5F",
+    accentBar: "#38BDF8",
+    dotOuter: "#0284C7",
+    dotInner: "#38BDF8",
+    brandColor: "#FFFFFF",
+    line1Color: "#FFFFFF",
     headerColor: "#38BDF8",
     subColor: "#93C5FD",
-    cardBg: "#0B132B",
-    qrPadBg: "#FFFFFF",
+    pillBg: "#0E1E38",
+    pillBorder: "#1E3A5F",
     textColor: "#F0F9FF",
-    borderColor: "#1C2541",
     accentDot: "bg-[#38BDF8] ring-2 ring-cyan-400/40",
-    pdfBg: [0.04, 0.07, 0.17],
-    pdfBorder: [0.11, 0.15, 0.25],
-    pdfTitle: [0.22, 0.74, 0.97],
+    pdfBg: [0.04, 0.08, 0.16],
+    pdfBorder: [0.12, 0.23, 0.37],
+    pdfBar: [0.22, 0.74, 0.97],
+    pdfLine1: [1.0, 1.0, 1.0],
+    pdfLine2: [0.22, 0.74, 0.97],
     pdfSub: [0.58, 0.77, 0.99],
+    pdfPillBg: [0.05, 0.12, 0.22],
+    pdfPillBorder: [0.12, 0.23, 0.37],
     pdfPhone: [0.94, 0.98, 1.0],
   },
   {
     id: "gold",
     name: "Lüks Altın",
     desc: "Asil amber",
+    cardBg: "#141416",
+    borderColor: "#3F2812",
+    accentBar: "#F59E0B",
+    dotOuter: "#B45309",
+    dotInner: "#F59E0B",
+    brandColor: "#FEF3C7",
+    line1Color: "#FEF3C7",
     headerColor: "#F59E0B",
     subColor: "#D97706",
-    cardBg: "#141416",
-    qrPadBg: "#FFFFFF",
+    pillBg: "#1C1A17",
+    pillBorder: "#3F2812",
     textColor: "#FEF3C7",
-    borderColor: "#3F2812",
     accentDot: "bg-[#F59E0B] ring-2 ring-amber-400/40",
     pdfBg: [0.08, 0.08, 0.09],
     pdfBorder: [0.25, 0.16, 0.07],
-    pdfTitle: [0.96, 0.62, 0.04],
+    pdfBar: [0.96, 0.62, 0.04],
+    pdfLine1: [1.0, 0.95, 0.78],
+    pdfLine2: [0.96, 0.62, 0.04],
     pdfSub: [0.85, 0.47, 0.02],
+    pdfPillBg: [0.11, 0.10, 0.09],
+    pdfPillBorder: [0.25, 0.16, 0.07],
     pdfPhone: [1.0, 0.95, 0.78],
   },
 ];
 
 /**
- * Pure vector PDF generator for 70 x 110 mm (7 x 11 cm) card with theme support.
+ * Pure vector PDF generator for 70 x 110 mm card matching official template.
  */
 function buildCardPdfBlob(qrUrl, formattedPhone, showPhone, theme = CARD_THEMES[0]) {
   const qr = QRCode.create(qrUrl, { errorCorrectionLevel: "M" });
@@ -90,9 +130,9 @@ function buildCardPdfBlob(qrUrl, formattedPhone, showPhone, theme = CARD_THEMES[
   const pageW = 198.43;
   const pageH = 311.81;
 
-  const qrSize = showPhone ? 124 : 148;
+  const qrSize = showPhone ? 116 : 138;
   const qrX = (pageW - qrSize) / 2;
-  const qrY = showPhone ? (pageH - qrSize) / 2 + 10 : (pageH - qrSize) / 2;
+  const qrY = showPhone ? 46 : (pageH - 74 - qrSize) / 2;
   const modSize = qrSize / count;
 
   let streamContent = "";
@@ -105,21 +145,34 @@ function buildCardPdfBlob(qrUrl, formattedPhone, showPhone, theme = CARD_THEMES[
   const [brR, brG, brB] = theme.pdfBorder;
   streamContent += `${brR} ${brG} ${brB} RG 1.5 w 4 4 ${(pageW - 8).toFixed(2)} ${(pageH - 8).toFixed(2)} re S\n`;
 
-  // Header Title 'NUMARATIK'
-  const [tR, tG, tB] = theme.pdfTitle;
-  streamContent += `BT /F1 11 Tf ${tR} ${tG} ${tB} rg ${(pageW / 2 - 36).toFixed(2)} ${(pageH - 36).toFixed(2)} Td (NUMARATIK) Tj ET\n`;
+  // Top Accent Bar
+  const [barR, barG, barB] = theme.pdfBar;
+  streamContent += `${barR} ${barG} ${barB} rg 14 ${(pageH - 12).toFixed(2)} 16 1.8 re f\n`;
 
-  // Header Subtitle 'Guvenli Arac Iletisimi'
+  // Brand Row Dot
+  streamContent += `0.11 0.31 0.85 rg 14 ${(pageH - 24).toFixed(2)} 4 4 re f\n`;
+  streamContent += `0.22 0.74 0.97 rg 15 ${(pageH - 23).toFixed(2)} 2 2 re f\n`;
+
+  // Brand Row Text
+  const [l1R, l1G, l1B] = theme.pdfLine1;
+  streamContent += `BT /F1 7 Tf ${l1R} ${l1G} ${l1B} rg 21 ${(pageH - 23.5).toFixed(2)} Td (NUMARATIK) Tj ET\n`;
+
+  // Headline Line 1: 'ARAC SAHIBINE'
+  streamContent += `BT /F1 11.5 Tf ${l1R} ${l1G} ${l1B} rg 14 ${(pageH - 39).toFixed(2)} Td (ARAC SAHIBINE) Tj ET\n`;
+
+  // Headline Line 2: 'ULASIN'
+  const [l2R, l2G, l2B] = theme.pdfLine2;
+  streamContent += `BT /F1 11.5 Tf ${l2R} ${l2G} ${l2B} rg 14 ${(pageH - 51).toFixed(2)} Td (ULASIN) Tj ET\n`;
+
+  // Subtitle: 'QR kodu okutun ve iletisim kurun.'
   const [sR, sG, sB] = theme.pdfSub;
-  streamContent += `BT /F2 6.5 Tf ${sR} ${sG} ${sB} rg ${(pageW / 2 - 42).toFixed(2)} ${(pageH - 47).toFixed(2)} Td (Guvenli Arac Iletisimi) Tj ET\n`;
+  streamContent += `BT /F2 5.5 Tf ${sR} ${sG} ${sB} rg 14 ${(pageH - 60).toFixed(2)} Td (QR kodu okutun ve iletisim kurun.) Tj ET\n`;
 
-  // High contrast white badge for QR if not classic white
-  if (theme.id !== "classic") {
-    const pad = 6;
-    streamContent += `1 1 1 rg ${(qrX - pad).toFixed(2)} ${(qrY - pad).toFixed(2)} ${(qrSize + pad * 2).toFixed(2)} ${(qrSize + pad * 2).toFixed(2)} re f\n`;
-  }
+  // White squircle badge for QR
+  const pad = 10;
+  streamContent += `1 1 1 rg ${(qrX - pad).toFixed(2)} ${(qrY - pad).toFixed(2)} ${(qrSize + pad * 2).toFixed(2)} ${(qrSize + pad * 2).toFixed(2)} re f\n`;
 
-  // Draw QR vector modules in solid black
+  // QR Vector Modules in Black
   streamContent += "0 0 0 rg\n";
   for (let r = 0; r < count; r++) {
     for (let c = 0; c < count; c++) {
@@ -131,16 +184,23 @@ function buildCardPdfBlob(qrUrl, formattedPhone, showPhone, theme = CARD_THEMES[
     }
   }
 
-  // Footer text
+  // Bottom Phone Pill
   if (showPhone && formattedPhone) {
+    const pillW = pageW - 28;
+    const pillH = 20;
+    const pillX = 14;
+    const pillY = 16;
+
+    const [pBgR, pBgG, pBgB] = theme.pdfPillBg;
+    const [pBrR, pBrG, pBrB] = theme.pdfPillBorder;
+    streamContent += `${pBgR} ${pBgG} ${pBgB} rg ${pillX.toFixed(2)} ${pillY.toFixed(2)} ${pillW.toFixed(2)} ${pillH.toFixed(2)} re f\n`;
+    streamContent += `${pBrR} ${pBrG} ${pBrB} RG 1 w ${pillX.toFixed(2)} ${pillY.toFixed(2)} ${pillW.toFixed(2)} ${pillH.toFixed(2)} re S\n`;
+
     const [phR, phG, phB] = theme.pdfPhone;
     const cleanPhone = formattedPhone.replace(/[^\d+ ]/g, "");
-    const phoneWidth = cleanPhone.length * 6.2;
-    const phoneX = Math.max(10, (pageW - phoneWidth) / 2);
-    streamContent += `BT /F1 11.5 Tf ${phR} ${phG} ${phB} rg ${phoneX.toFixed(2)} ${(qrY - 22).toFixed(2)} Td (${cleanPhone}) Tj ET\n`;
-    streamContent += `BT /F2 6 Tf ${sR} ${sG} ${sB} rg ${(pageW / 2 - 38).toFixed(2)} ${(qrY - 33).toFixed(2)} Td (Kameranizla okutun) Tj ET\n`;
-  } else {
-    streamContent += `BT /F2 7 Tf ${sR} ${sG} ${sB} rg ${(pageW / 2 - 38).toFixed(2)} ${(qrY - 24).toFixed(2)} Td (Kameranizla okutun) Tj ET\n`;
+    const phoneWidth = cleanPhone.length * 5.2;
+    const phoneX = Math.max(16, (pageW - phoneWidth) / 2);
+    streamContent += `BT /F1 9 Tf ${phR} ${phG} ${phB} rg ${phoneX.toFixed(2)} ${(pillY + 6.5).toFixed(2)} Td (${cleanPhone}) Tj ET\n`;
   }
 
   const streamLen = new TextEncoder().encode(streamContent).length;
@@ -236,55 +296,93 @@ export default function QRCardDesigner({
     ctx.lineWidth = 14;
     ctx.strokeRect(20, 20, width - 40, height - 40);
 
-    // Header Title
+    // Top Accent Bar
+    ctx.fillStyle = activeTheme.accentBar;
+    ctx.beginPath();
+    ctx.roundRect(90, 80, 110, 12, 6);
+    ctx.fill();
+
+    // Brand Row Dot
+    ctx.fillStyle = activeTheme.dotOuter;
+    ctx.beginPath();
+    ctx.arc(104, 140, 15, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = activeTheme.dotInner;
+    ctx.beginPath();
+    ctx.arc(104, 140, 7, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Brand Text 'NUMARATİK'
+    ctx.fillStyle = activeTheme.brandColor;
+    ctx.font = "bold 34px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
+    ctx.textAlign = "left";
+    ctx.fillText("NUMARATİK", 136, 152);
+
+    // Headline Line 1: 'ARAÇ SAHİBİNE'
+    ctx.fillStyle = activeTheme.line1Color;
+    ctx.font = "900 64px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
+    ctx.fillText("ARAÇ SAHİBİNE", 90, 245);
+
+    // Headline Line 2: 'ULAŞIN'
     ctx.fillStyle = activeTheme.headerColor;
-    ctx.font = "bold 64px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
-    ctx.textAlign = "center";
-    ctx.fillText("NUMARATİK", width / 2, 220);
+    ctx.fillText("ULAŞIN", 90, 325);
 
-    // Header Subtitle
+    // Subtitle: 'QR kodu okutun ve iletişim kurun.'
     ctx.fillStyle = activeTheme.subColor;
-    ctx.font = "500 38px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
-    ctx.fillText("Güvenli Araç İletişimi", width / 2, 280);
+    ctx.font = "500 32px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
+    ctx.fillText("QR kodu okutun ve iletişim kurun.", 90, 385);
 
-    // Draw QR code onto canvas
-    const qrCanvasSize = showPhone ? 920 : 1060;
-    const qrY = showPhone ? 380 : 480;
-    const qrX = (width - qrCanvasSize) / 2;
+    // Draw White Squircle Badge for QR
+    const squircleSize = showPhone ? 980 : 1100;
+    const squircleX = (width - squircleSize) / 2;
+    const squircleY = showPhone ? 440 : 510;
 
-    // White badge if not classic
-    if (activeTheme.id !== "classic") {
-      const pad = 36;
-      ctx.fillStyle = "#FFFFFF";
-      ctx.beginPath();
-      ctx.roundRect(qrX - pad, qrY - pad, qrCanvasSize + pad * 2, qrCanvasSize + pad * 2, 36);
-      ctx.fill();
-    }
+    ctx.fillStyle = "#FFFFFF";
+    ctx.beginPath();
+    ctx.roundRect(squircleX, squircleY, squircleSize, squircleSize, 70);
+    ctx.fill();
+
+    // Draw QR code onto canvas inside squircle
+    const qrInnerPadding = 70;
+    const qrSize = squircleSize - qrInnerPadding * 2;
+    const qrX = squircleX + qrInnerPadding;
+    const qrY = squircleY + qrInnerPadding;
 
     const tempCanvas = document.createElement("canvas");
     QRCode.toCanvas(tempCanvas, publicUrl, {
-      width: qrCanvasSize,
+      width: qrSize,
       margin: 1,
       color: { dark: "#000000", light: "#FFFFFF" },
     })
       .then(() => {
-        ctx.drawImage(tempCanvas, qrX, qrY, qrCanvasSize, qrCanvasSize);
+        ctx.drawImage(tempCanvas, qrX, qrY, qrSize, qrSize);
 
-        // Footer
+        // Bottom Phone Pill
         if (showPhone && formattedPhone) {
-          ctx.fillStyle = activeTheme.textColor;
-          ctx.font = "bold 78px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, monospace";
-          ctx.textAlign = "center";
-          ctx.fillText(formattedPhone, width / 2, qrY + qrCanvasSize + 140);
+          const pillW = 1220;
+          const pillH = 140;
+          const pillX = (width - pillW) / 2;
+          const pillY = squircleY + squircleSize + 75;
 
-          ctx.fillStyle = activeTheme.subColor;
-          ctx.font = "500 36px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
-          ctx.fillText("Kameranızla okutun veya arayın", width / 2, qrY + qrCanvasSize + 210);
-        } else {
-          ctx.fillStyle = activeTheme.subColor;
-          ctx.font = "500 42px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
+          // Pill Background
+          ctx.fillStyle = activeTheme.pillBg;
+          ctx.beginPath();
+          ctx.roundRect(pillX, pillY, pillW, pillH, 70);
+          ctx.fill();
+
+          // Pill Border
+          ctx.strokeStyle = activeTheme.pillBorder;
+          ctx.lineWidth = 6;
+          ctx.beginPath();
+          ctx.roundRect(pillX, pillY, pillW, pillH, 70);
+          ctx.stroke();
+
+          // Phone Text
+          ctx.fillStyle = activeTheme.textColor;
+          ctx.font = "bold 60px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, monospace";
           ctx.textAlign = "center";
-          ctx.fillText("Kameranızla okutun", width / 2, qrY + qrCanvasSize + 170);
+          ctx.fillText(formattedPhone, width / 2, pillY + 92);
         }
       })
       .catch(() => {});
@@ -308,7 +406,7 @@ export default function QRCardDesigner({
     }, "image/png");
   };
 
-  // SVG Download (pure vector with theme colors)
+  // SVG Download (pure vector with exact layout)
   const handleDownloadSVG = () => {
     if (!publicUrl) return;
 
@@ -317,9 +415,14 @@ export default function QRCardDesigner({
     const viewBoxW = 700;
     const viewBoxH = 1100;
 
-    const qrSize = showPhone ? 460 : 530;
-    const qrX = (viewBoxW - qrSize) / 2;
-    const qrY = showPhone ? 190 : 240;
+    const sqSize = showPhone ? 490 : 550;
+    const sqX = (viewBoxW - sqSize) / 2;
+    const sqY = showPhone ? 220 : 255;
+
+    const qrPadding = 35;
+    const qrSize = sqSize - qrPadding * 2;
+    const qrX = sqX + qrPadding;
+    const qrY = sqY + qrPadding;
     const modSize = qrSize / count;
 
     let pathD = "";
@@ -334,26 +437,39 @@ export default function QRCardDesigner({
       }
     }
 
-    const whiteBadge =
-      activeTheme.id !== "classic"
-        ? `<rect x="${qrX - 18}" y="${qrY - 18}" width="${qrSize + 36}" height="${qrSize + 36}" rx="24" fill="#FFFFFF" />`
-        : "";
-
-    const phoneSvgPart =
+    const pillSvgPart =
       showPhone && formattedPhone
-        ? `<text x="350" y="${qrY + qrSize + 70}" font-family="monospace" font-size="38" font-weight="bold" fill="${activeTheme.textColor}" text-anchor="middle">${formattedPhone}</text>
-           <text x="350" y="${qrY + qrSize + 105}" font-family="sans-serif" font-size="18" fill="${activeTheme.subColor}" text-anchor="middle">Kameranızla okutun veya arayın</text>`
-        : `<text x="350" y="${qrY + qrSize + 80}" font-family="sans-serif" font-size="20" fill="${activeTheme.subColor}" text-anchor="middle">Kameranızla okutun</text>`;
+        ? `<rect x="45" y="${sqY + sqSize + 38}" width="610" height="70" rx="35" fill="${activeTheme.pillBg}" stroke="${activeTheme.pillBorder}" stroke-width="3" />
+           <text x="350" y="${sqY + sqSize + 83}" font-family="monospace, sans-serif" font-size="30" font-weight="bold" fill="${activeTheme.textColor}" text-anchor="middle" letter-spacing="1">${formattedPhone}</text>`
+        : "";
 
     const svgContent = `<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${viewBoxW} ${viewBoxH}" width="70mm" height="110mm">
+  <!-- Card Background -->
   <rect width="${viewBoxW}" height="${viewBoxH}" fill="${activeTheme.cardBg}" />
   <rect x="8" y="8" width="${viewBoxW - 16}" height="${viewBoxH - 16}" fill="none" stroke="${activeTheme.borderColor}" stroke-width="6" rx="24" />
-  <text x="350" y="110" font-family="sans-serif" font-size="32" font-weight="bold" fill="${activeTheme.headerColor}" text-anchor="middle">NUMARATİK</text>
-  <text x="350" y="140" font-family="sans-serif" font-size="19" fill="${activeTheme.subColor}" text-anchor="middle">Güvenli Araç İletişimi</text>
-  ${whiteBadge}
+
+  <!-- Top Accent Bar -->
+  <rect x="45" y="40" width="55" height="6" rx="3" fill="${activeTheme.accentBar}" />
+
+  <!-- Brand Row -->
+  <circle cx="53" cy="70" r="8" fill="${activeTheme.dotOuter}" />
+  <circle cx="53" cy="70" r="4" fill="${activeTheme.dotInner}" />
+  <text x="70" y="76" font-family="sans-serif" font-size="17" font-weight="bold" fill="${activeTheme.brandColor}" letter-spacing="1.5">NUMARATİK</text>
+
+  <!-- Headline -->
+  <text x="45" y="122" font-family="sans-serif" font-size="31" font-weight="900" fill="${activeTheme.line1Color}">ARAÇ SAHİBİNE</text>
+  <text x="45" y="160" font-family="sans-serif" font-size="31" font-weight="900" fill="${activeTheme.headerColor}">ULAŞIN</text>
+  <text x="45" y="188" font-family="sans-serif" font-size="15" font-weight="500" fill="${activeTheme.subColor}">QR kodu okutun ve iletişim kurun.</text>
+
+  <!-- White Squircle Badge -->
+  <rect x="${sqX}" y="${sqY}" width="${sqSize}" height="${sqSize}" rx="36" fill="#FFFFFF" />
+
+  <!-- QR Modules -->
   <path d="${pathD}" fill="#000000" />
-  ${phoneSvgPart}
+
+  <!-- Bottom Phone Pill -->
+  ${pillSvgPart}
 </svg>`;
 
     const blob = new Blob([svgContent], { type: "image/svg+xml;charset=utf-8" });
@@ -400,76 +516,118 @@ export default function QRCardDesigner({
           Baskı Önizlemesi (7 × 11 cm)
         </div>
 
+        {/* The Card Box matching user's template */}
         <div
-          className="relative w-[210px] h-[330px] rounded-[18px] p-4 shadow-2xl flex flex-col items-center justify-between select-none transition-colors duration-200"
+          className="relative w-[220px] h-[345px] rounded-[22px] p-3.5 shadow-2xl flex flex-col justify-between select-none transition-colors duration-200 overflow-hidden text-left"
           style={{
             backgroundColor: activeTheme.cardBg,
             borderColor: activeTheme.borderColor,
-            borderWidth: 1,
+            borderWidth: 1.5,
             borderStyle: "solid",
           }}
         >
-          {/* Card Header */}
-          <div className="flex flex-col items-center pt-2">
+          {/* Top Header Section */}
+          <div className="flex flex-col items-start w-full">
+            {/* Top Accent Bar */}
+            <div
+              className="w-10 h-1 rounded-full mb-2"
+              style={{ backgroundColor: activeTheme.accentBar }}
+            />
+
+            {/* Brand Row */}
+            <div className="flex items-center gap-1.5 mb-1.5">
+              <span className="relative flex h-2.5 w-2.5 items-center justify-center">
+                <span
+                  className="animate-ping absolute inline-flex h-full w-full rounded-full opacity-40"
+                  style={{ backgroundColor: activeTheme.dotInner }}
+                />
+                <span
+                  className="relative inline-flex rounded-full h-2 w-2 ring-2"
+                  style={{
+                    backgroundColor: activeTheme.dotInner,
+                    borderColor: activeTheme.dotOuter,
+                  }}
+                />
+              </span>
+              <span
+                className="text-[10px] font-extrabold tracking-widest uppercase"
+                style={{ color: activeTheme.brandColor }}
+              >
+                NUMARATİK
+              </span>
+            </div>
+
+            {/* Headline (Two Lines) */}
+            <div className="leading-[1.15] mb-1">
+              <span
+                className="block text-[14px] font-black tracking-tight"
+                style={{ color: activeTheme.line1Color }}
+              >
+                ARAÇ SAHİBİNE
+              </span>
+              <span
+                className="block text-[14px] font-black tracking-tight"
+                style={{ color: activeTheme.headerColor }}
+              >
+                ULAŞIN
+              </span>
+            </div>
+
+            {/* Subtitle */}
             <span
-              className="text-[13px] font-extrabold tracking-wider"
-              style={{ color: activeTheme.headerColor }}
-            >
-              NUMARATİK
-            </span>
-            <span
-              className="text-[9px] font-medium -mt-0.5"
+              className="text-[8px] font-medium leading-tight"
               style={{ color: activeTheme.subColor }}
             >
-              Güvenli Araç İletişimi
+              QR kodu okutun ve iletişim kurun.
             </span>
           </div>
 
-          {/* QR Code Container */}
-          <div
-            className={`flex items-center justify-center p-2 rounded-xl bg-white ${
-              showPhone ? "w-[150px] h-[150px]" : "w-[174px] h-[174px]"
-            }`}
-            style={{
-              boxShadow: activeTheme.id !== "classic" ? "0 4px 12px rgba(0,0,0,0.35)" : "none",
-            }}
-          >
-            {qrSvg ? (
-              <div
-                className="w-full h-full flex items-center justify-center [&>svg]:w-full [&>svg]:h-full"
-                dangerouslySetInnerHTML={{ __html: qrSvg }}
-              />
-            ) : (
-              <div className="w-full h-full bg-gray-100 rounded-lg animate-pulse" />
-            )}
+          {/* QR Code Container (White Squircle) */}
+          <div className="w-full flex items-center justify-center my-auto py-1">
+            <div
+              className={`flex items-center justify-center p-2.5 rounded-[18px] bg-white shadow-xl ${
+                showPhone ? "w-[145px] h-[145px]" : "w-[160px] h-[160px]"
+              }`}
+            >
+              {qrSvg ? (
+                <div
+                  className="w-full h-full flex items-center justify-center [&>svg]:w-full [&>svg]:h-full"
+                  dangerouslySetInnerHTML={{ __html: qrSvg }}
+                />
+              ) : (
+                <div className="w-full h-full bg-gray-100 rounded-lg animate-pulse" />
+              )}
+            </div>
           </div>
 
-          {/* Card Footer */}
-          <div className="flex flex-col items-center pb-2 text-center">
-            {showPhone && formattedPhone ? (
-              <>
-                <span
-                  className="text-[13px] font-bold font-mono tracking-tight"
-                  style={{ color: activeTheme.textColor }}
-                >
-                  {formattedPhone}
-                </span>
-                <span
-                  className="text-[8px] mt-0.5"
-                  style={{ color: activeTheme.subColor }}
-                >
-                  Kameranızla okutun veya arayın
-                </span>
-              </>
-            ) : (
+          {/* Card Footer (Phone Pill or Scan message) */}
+          {showPhone && formattedPhone ? (
+            <div
+              className="w-full py-2 px-3 rounded-xl flex items-center justify-center text-center shadow-inner"
+              style={{
+                backgroundColor: activeTheme.pillBg,
+                borderWidth: 1,
+                borderStyle: "solid",
+                borderColor: activeTheme.pillBorder,
+              }}
+            >
               <span
-                className="text-[9px] font-medium"
+                className="text-[11.5px] font-bold font-mono tracking-wider"
+                style={{ color: activeTheme.textColor }}
+              >
+                {formattedPhone}
+              </span>
+            </div>
+          ) : (
+            <div className="w-full text-center pb-0.5">
+              <span
+                className="text-[8.5px] font-medium"
                 style={{ color: activeTheme.subColor }}
               >
                 Kameranızla okutun
               </span>
-            )}
-          </div>
+            </div>
+          )}
         </div>
       </div>
 
