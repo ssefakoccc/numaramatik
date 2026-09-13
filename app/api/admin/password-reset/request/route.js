@@ -13,10 +13,7 @@ export async function POST(req) {
       return Response.json({ success: false, error: "Geçersiz istek biçimi." }, { status: 400 });
     }
 
-    const { slug, phone } = body;
-    if (!slug) {
-      return Response.json({ success: false, error: "Araç kodu belirtilmedi." }, { status: 400 });
-    }
+    const { slug: rawSlug, phone } = body;
 
     const normalizedPhone = normalizePhoneNumber(phone);
     if (!normalizedPhone) {
@@ -31,15 +28,28 @@ export async function POST(req) {
       return Response.json({ success: false, error: "Veritabanı servisi hazır değil." }, { status: 503 });
     }
 
-    // 1. Verify phone matches vehicle card
-    const { data: card, error: cardErr } = await supabase
-      .from("vehicle_card")
-      .select("slug, phone_number, display_name")
-      .eq("slug", slug)
-      .maybeSingle();
+    let targetSlug = rawSlug;
+    let card = null;
 
-    if (cardErr || !card) {
-      return Response.json({ success: false, error: "Araç bulunamadı." }, { status: 404 });
+    if (targetSlug) {
+      const { data, error: cardErr } = await supabase
+        .from("vehicle_card")
+        .select("slug, phone_number, display_name")
+        .eq("slug", targetSlug)
+        .maybeSingle();
+      if (!cardErr) card = data;
+    } else {
+      const { data, error: cardErr } = await supabase
+        .from("vehicle_card")
+        .select("slug, phone_number, display_name")
+        .eq("phone_number", normalizedPhone)
+        .maybeSingle();
+      if (!cardErr) card = data;
+      if (card) targetSlug = card.slug;
+    }
+
+    if (!card) {
+      return Response.json({ success: false, error: "Bu telefon numarası ile kayıtlı bir araç bulunamadı." }, { status: 404 });
     }
 
     if (card.phone_number !== normalizedPhone) {
@@ -53,7 +63,7 @@ export async function POST(req) {
     const { data: tgCreds } = await supabase
       .from("vehicle_telegram_credentials")
       .select("telegram_chat_id, bot_token_ciphertext, bot_token_iv, bot_token_auth_tag")
-      .eq("vehicle_slug", slug)
+      .eq("vehicle_slug", targetSlug)
       .maybeSingle();
 
     if (tgCreds && tgCreds.telegram_chat_id && tgCreds.bot_token_ciphertext) {
@@ -66,11 +76,11 @@ export async function POST(req) {
 
         // Generate 6-digit OTP
         const otp = Math.floor(100000 + Math.random() * 900000).toString();
-        const tokenHash = crypto.createHash("sha256").update(`reset_otp:${slug}:${otp}`).digest("hex");
+        const tokenHash = crypto.createHash("sha256").update(`reset_otp:${targetSlug}:${otp}`).digest("hex");
         const expiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString(); // 15 mins
 
         await supabase.from("card_activation_tokens").insert({
-          vehicle_slug: slug,
+          vehicle_slug: targetSlug,
           token_hash: tokenHash,
           expires_at: expiresAt,
         });
@@ -80,6 +90,8 @@ export async function POST(req) {
 
         return Response.json({
           success: true,
+          slug: targetSlug,
+          displayName: card.display_name,
           method: "telegram",
           message: "6 haneli güvenlik kodu Telegram botunuza gönderildi.",
         });
@@ -91,6 +103,8 @@ export async function POST(req) {
     // Telegram not connected: prompt for recovery code
     return Response.json({
       success: true,
+      slug: targetSlug,
+      displayName: card.display_name,
       method: "recovery_code",
       message: "Bu araçta Telegram bağlı değil. Kayıt sırasında verilen Kurtarma Kodunuzu (RC-...) girerek şifrenizi sıfırlayabilirsiniz.",
     });
