@@ -3,9 +3,10 @@
 import { Car, Phone } from 'lucide-react';
 import { formatDisplayPhone, getTelLink } from '@/lib/phone';
 
-export default function ContactHero({ phone, loading }) {
+export default function ContactHero({ phone, loading, displayName }) {
   const displayPhone = phone ? formatDisplayPhone(phone) : null;
   const telLink = phone ? getTelLink(phone) : null;
+  const headerTitle = displayName && displayName !== 'Araç' ? `${displayName} sahibine ulaşın` : 'Araç sahibine ulaşın';
 
   return (
     <header className="w-full flex flex-col items-center text-center">
@@ -14,7 +15,7 @@ export default function ContactHero({ phone, loading }) {
         <span className="w-1.5 h-1.5 rounded-full bg-[#3B82F6] shrink-0" aria-hidden="true" />
         <span className="tracking-widest uppercase text-[10px] text-[#F7F9FC] font-semibold">NUMARATİK</span>
         <span className="text-white/20">•</span>
-        <span>Araç sahibiyle iletişim</span>
+        <span>{displayName || 'Araç sahibiyle iletişim'}</span>
       </div>
 
       {/* Product emblem */}
@@ -24,7 +25,7 @@ export default function ContactHero({ phone, loading }) {
 
       {/* Main Title & Description */}
       <h1 className="text-xl sm:text-2xl font-semibold tracking-tight text-[#F7F9FC] mb-1.5">
-        Araç sahibine ulaşın
+        {headerTitle}
       </h1>
       <p className="text-xs sm:text-sm text-[#98A2B3] max-w-[320px] leading-relaxed mb-4">
         Park veya araçla ilgili bir durum için aşağıdaki seçeneklerden biriyle iletişim kurabilirsiniz.

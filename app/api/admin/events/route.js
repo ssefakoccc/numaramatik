@@ -1,4 +1,5 @@
-import { verifyAdminAuth } from '@/lib/security/admin-auth';
+import { verifyCardAdmin } from '@/lib/security/card-auth';
+import { normalizeSlug } from '@/lib/slug';
 
 export const dynamic = 'force-dynamic';
 
@@ -11,10 +12,18 @@ export async function POST(req) {
       return Response.json({ success: false, error: 'Geçersiz istek gövdesi.' }, { status: 400 });
     }
 
-    const { secretKey } = body || {};
+    const { secretKey, slug: rawSlug } = body || {};
+    let slug = 'arac';
+    if (rawSlug !== undefined && rawSlug !== null && rawSlug !== '') {
+      const normalized = normalizeSlug(rawSlug);
+      if (!normalized) {
+        return Response.json({ success: false, error: 'Geçersiz araç kartı adresi biçimi.' }, { status: 400 });
+      }
+      slug = normalized;
+    }
 
-    // 1. Verify admin credentials with rate-limiting & timing-safe check
-    const authResult = await verifyAdminAuth(req, secretKey);
+    // 1. Verify card-scoped admin credentials
+    const authResult = await verifyCardAdmin(req, slug, secretKey);
     if (!authResult.authorized) {
       return Response.json(
         { success: false, error: authResult.error },
@@ -30,11 +39,11 @@ export async function POST(req) {
       );
     }
 
-    // 2. Fetch latest 20 scan and scenario events (NEVER admin_failed)
+    // 2. Fetch latest 20 scan and scenario events for this vehicle card (NEVER admin_failed)
     const { data, error } = await supabase
       .from('vehicle_events')
       .select('id, event_type, reason, device_label, created_at')
-      .eq('vehicle_slug', 'arac')
+      .eq('vehicle_slug', authResult.slug)
       .in('event_type', ['scan', 'scenario'])
       .order('created_at', { ascending: false })
       .limit(20);
@@ -59,12 +68,12 @@ export async function POST(req) {
       createdAt: row.created_at,
     }));
 
-    return Response.json(
-      { success: true, events },
-      {
-        headers: { 'Cache-Control': 'no-store, max-age=0' },
-      }
-    );
+    const headers = { 'Cache-Control': 'no-store, max-age=0' };
+    if (authResult.newSessionToken) {
+      headers['Set-Cookie'] = `numaratik_session_${authResult.slug}=${authResult.newSessionToken}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=7200`;
+    }
+
+    return Response.json({ success: true, events }, { headers });
   } catch {
     return Response.json({ success: false, error: 'Sunucu hatası oluştu.' }, { status: 500 });
   }

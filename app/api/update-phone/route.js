@@ -1,5 +1,6 @@
-import { verifyAdminAuth } from '@/lib/security/admin-auth';
+import { verifyCardAdmin } from '@/lib/security/card-auth';
 import { normalizePhoneNumber } from '@/lib/phone';
+import { normalizeSlug } from '@/lib/slug';
 
 export const dynamic = 'force-dynamic';
 
@@ -12,10 +13,18 @@ export async function POST(req) {
       return Response.json({ success: false, error: 'Geçersiz istek gövdesi.' }, { status: 400 });
     }
 
-    const { phone, secretKey } = body || {};
+    const { phone, secretKey, slug: rawSlug } = body || {};
+    let slug = 'arac';
+    if (rawSlug !== undefined && rawSlug !== null && rawSlug !== '') {
+      const normalized = normalizeSlug(rawSlug);
+      if (!normalized) {
+        return Response.json({ success: false, error: 'Geçersiz araç kartı adresi biçimi.' }, { status: 400 });
+      }
+      slug = normalized;
+    }
 
-    // 1. Verify admin credentials with rate-limiting & timing-safe check
-    const authResult = await verifyAdminAuth(req, secretKey);
+    // 1. Verify card-scoped admin credentials with rate-limiting & session support
+    const authResult = await verifyCardAdmin(req, slug, secretKey);
     if (!authResult.authorized) {
       return Response.json(
         { success: false, error: authResult.error },
@@ -40,11 +49,11 @@ export async function POST(req) {
       );
     }
 
-    // 3. Update vehicle_card
+    // 3. Update vehicle_card for target slug
     const { data, error } = await supabase
       .from('vehicle_card')
       .update({ phone_number: normalized })
-      .eq('slug', 'arac')
+      .eq('slug', authResult.slug)
       .select('phone_number');
 
     if (error || !data || data.length === 0) {
@@ -54,7 +63,12 @@ export async function POST(req) {
       );
     }
 
-    return Response.json({ success: true, phoneNumber: normalized });
+    const headers = {};
+    if (authResult.newSessionToken) {
+      headers['Set-Cookie'] = `numaratik_session_${authResult.slug}=${authResult.newSessionToken}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=7200`;
+    }
+
+    return Response.json({ success: true, phoneNumber: normalized }, { headers });
   } catch {
     return Response.json({ success: false, error: 'Sunucu hatası oluştu.' }, { status: 500 });
   }

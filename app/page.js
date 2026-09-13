@@ -116,6 +116,7 @@ export default function ScannerPage() {
         body: JSON.stringify({
           type: 'scenario',
           reason: title,
+          slug: 'arac',
         }),
         keepalive: true,
       }).catch(() => {});
@@ -127,7 +128,7 @@ export default function ScannerPage() {
       {/* Instant Early Scan Notification Trigger */}
       <script
         dangerouslySetInnerHTML={{
-          __html: `(function(){try{if(window.location.pathname!=='/')return;if(sessionStorage.getItem('numaratik_scan_notified')==='1')return;if(window.__numaratik_scanning)return;window.__numaratik_scanning=true;function sendScan(retry){fetch('/api/notify',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({type:'scan'}),keepalive:true}).then(function(res){if(res.ok){try{sessionStorage.setItem('numaratik_scan_notified','1');}catch(e){}}else if(retry){setTimeout(function(){sendScan(false);},1500);}}).catch(function(){if(retry){setTimeout(function(){sendScan(false);},1500);}});}sendScan(true);}catch(e){}})();`,
+          __html: `(function(){try{if(window.location.pathname!=='/')return;if(sessionStorage.getItem('numaratik_scan_notified')==='1')return;if(window.__numaratik_scanning)return;window.__numaratik_scanning=true;function sendScan(canRetry){fetch('/api/notify',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({type:'scan',slug:'arac'}),keepalive:true}).then(function(res){return res.json().then(function(data){return{ok:res.ok,data:data};}).catch(function(){return{ok:res.ok,data:null};});}).then(function(result){if(result.ok&&result.data&&result.data.success===true){try{sessionStorage.setItem('numaratik_scan_notified','1');}catch(e){}}else if(canRetry){setTimeout(function(){sendScan(false);},1500);}}).catch(function(){if(canRetry){setTimeout(function(){sendScan(false);},1500);}});}sendScan(true);}catch(e){}})();`,
         }}
       />
       {/* Subtle radial spotlight */}
