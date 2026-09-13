@@ -12,6 +12,11 @@ const nextConfig = {
         destination: "/yeni",
         permanent: true,
       },
+      {
+        source: "/patron",
+        destination: "/super-admin",
+        permanent: false,
+      },
     ];
   },
 };
