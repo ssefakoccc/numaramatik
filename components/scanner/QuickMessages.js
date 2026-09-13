@@ -1,6 +1,6 @@
 'use client';
 
-import { Car, AlertTriangle, ShieldAlert, Zap } from 'lucide-react';
+import { Car, AlertTriangle, ShieldAlert, Zap, Check } from 'lucide-react';
 
 export const SCENARIOS = [
   {
@@ -29,26 +29,45 @@ export const SCENARIOS = [
   },
 ];
 
-export default function QuickMessages({ selectedText, onSelect }) {
+export default function QuickMessages({
+  selectedText,
+  selectedMessage,
+  onSelect,
+  onSelectMessage,
+}) {
+  const activeSelected = selectedText || selectedMessage;
+  const handleSelect = onSelect || onSelectMessage;
+
   return (
     <section className="w-full mt-3 text-left" aria-label="Hazır Durum Mesajları">
       <div className="flex items-center justify-between mb-2 px-1">
         <h2 className="text-[11px] font-semibold text-[#98A2B3] uppercase tracking-wider">
           Hazır Durum Seçimi
         </h2>
-        <span className="text-[10px] text-[#667085]">Mesajı otomatik doldurur</span>
+        {activeSelected ? (
+          <span className="text-[10px] text-[#60A5FA] font-medium flex items-center gap-1">
+            <span className="w-1.5 h-1.5 rounded-full bg-[#60A5FA] animate-pulse" />
+            Sürücüye iletildi
+          </span>
+        ) : (
+          <span className="text-[10px] text-[#667085]">Mesajı otomatik doldurur</span>
+        )}
       </div>
 
       <div className="grid grid-cols-2 gap-2">
         {SCENARIOS.map((item) => {
           const Icon = item.icon;
-          const isSelected = selectedText === item.text;
+          const isSelected = activeSelected === item.text;
 
           return (
             <button
               key={item.id}
               type="button"
-              onClick={() => onSelect(item.text, item.title)}
+              onClick={() => {
+                if (typeof handleSelect === 'function') {
+                  handleSelect(item.text, item.title);
+                }
+              }}
               aria-pressed={isSelected}
               className={`p-3 rounded-2xl text-left transition-all duration-150 flex flex-col gap-2 border ${
                 isSelected

@@ -6,13 +6,15 @@ import { getTelLink, getWhatsAppLink, getSmsLink } from '@/lib/phone';
 export default function ContactActions({
   phone,
   message,
+  selectedMessage,
   copied,
   onCopy,
   disabled = false,
 }) {
+  const activeMessage = message || selectedMessage;
   const telLink = phone ? getTelLink(phone) : null;
-  const waLink = phone ? getWhatsAppLink(phone, message) : null;
-  const smsLink = phone ? getSmsLink(phone, message) : null;
+  const waLink = phone ? getWhatsAppLink(phone, activeMessage) : null;
+  const smsLink = phone ? getSmsLink(phone, activeMessage) : null;
 
   return (
     <section className="w-full flex flex-col gap-2.5 my-4" aria-label="İletişim Seçenekleri">

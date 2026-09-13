@@ -219,13 +219,14 @@ export default function VehicleCardView({ slug = "arac" }) {
             <>
               <ContactActions
                 phone={phone}
+                message={selectedMessage}
                 copied={copied}
                 onCopy={handleCopy}
-                selectedMessage={selectedMessage}
+                disabled={loading || !!error}
               />
               <QuickMessages
-                onSelectMessage={handleScenarioSelect}
-                selectedMessage={selectedMessage}
+                selectedText={selectedMessage}
+                onSelect={handleScenarioSelect}
               />
             </>
           )}
