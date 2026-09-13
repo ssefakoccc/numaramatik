@@ -12,6 +12,15 @@ export async function GET(req) {
 
     const check = await verifyActivationToken(token);
     if (!check.valid) {
+      if (check.alreadyActivated) {
+        return Response.json({
+          valid: false,
+          alreadyActivated: true,
+          slug: check.slug,
+          displayName: check.displayName,
+          error: check.error,
+        }, { status: 200 });
+      }
       return Response.json({ valid: false, error: check.error }, { status: 400 });
     }
 

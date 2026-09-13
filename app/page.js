@@ -1,11 +1,14 @@
 'use client';
 
 import { useEffect, useState, useCallback, useRef } from 'react';
+import Link from 'next/link';
 import ContactHero from '@/components/scanner/ContactHero';
 import ContactActions from '@/components/scanner/ContactActions';
 import QuickMessages, { SCENARIOS } from '@/components/scanner/QuickMessages';
-import { AlertCircle, RotateCcw } from 'lucide-react';
+import { AlertCircle, RotateCcw, Shield, ChevronRight } from 'lucide-react';
 import { normalizePhoneNumber } from '@/lib/phone';
+
+import { useOwnerSlug } from '@/lib/useOwnerSlug';
 
 export default function ScannerPage() {
   const [phone, setPhone] = useState(null);
@@ -14,6 +17,9 @@ export default function ScannerPage() {
   const [copied, setCopied] = useState(false);
   const [selectedMessage, setSelectedMessage] = useState(SCENARIOS[0].text);
   const activeAbortRef = useRef(null);
+
+  const ownerSlug = useOwnerSlug();
+  const isOwner = ownerSlug === 'arac';
 
   // Single, reliable phone data fetcher
   const fetchPhoneData = useCallback(async (isRetry = false) => {
@@ -139,6 +145,23 @@ export default function ScannerPage() {
 
       {/* Main Container */}
       <div className="w-full max-w-[400px] my-auto flex flex-col items-center relative z-10">
+        {/* Owner Banner (if scanned on owner's device) */}
+        {isOwner && (
+          <div className="w-full mb-3 px-4 py-2.5 rounded-2xl bg-[#3B82F6]/10 border border-[#3B82F6]/30 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Shield className="w-4 h-4 text-[#60A5FA]" />
+              <span className="text-xs font-medium text-[#F7F9FC]">Bu araç sizin cihazınızda kayıtlı</span>
+            </div>
+            <Link
+              href="/admin"
+              className="text-xs font-semibold text-[#60A5FA] hover:text-[#93C5FD] transition-colors flex items-center gap-0.5"
+            >
+              <span>Yönetim</span>
+              <ChevronRight className="w-3.5 h-3.5" />
+            </Link>
+          </div>
+        )}
+
         {/* Card Surface */}
         <div className="w-full bg-[#080B12] border border-white/[0.08] rounded-[32px] p-6 sm:p-7 shadow-2xl flex flex-col items-center text-center">
           {/* Header & Emblem */}

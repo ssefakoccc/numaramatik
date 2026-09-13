@@ -6,9 +6,83 @@ import { Download, Copy, Check, Eye, QrCode, AlertCircle, FileText, Image as Ima
 import { formatDisplayPhone } from "@/lib/phone";
 
 /**
- * Pure vector PDF generator for 70 x 110 mm (7 x 11 cm) card.
+ * Available Design Themes for QR Card
  */
-function buildCardPdfBlob(qrUrl, formattedPhone, showPhone) {
+export const CARD_THEMES = [
+  {
+    id: "dark",
+    name: "Numaratik Gece",
+    desc: "Bizimki gibi",
+    headerColor: "#3B82F6",
+    subColor: "#98A2B3",
+    cardBg: "#080B12",
+    qrPadBg: "#FFFFFF",
+    textColor: "#F7F9FC",
+    borderColor: "#1E293B",
+    accentDot: "bg-[#3B82F6] ring-2 ring-blue-400/40",
+    pdfBg: [0.03, 0.04, 0.07],
+    pdfBorder: [0.12, 0.16, 0.23],
+    pdfTitle: [0.23, 0.51, 0.96],
+    pdfSub: [0.60, 0.64, 0.70],
+    pdfPhone: [0.97, 0.98, 0.99],
+  },
+  {
+    id: "classic",
+    name: "Klasik Beyaz",
+    desc: "Baskı dostu",
+    headerColor: "#111827",
+    subColor: "#6B7280",
+    cardBg: "#FFFFFF",
+    qrPadBg: "#FFFFFF",
+    textColor: "#111827",
+    borderColor: "#E5E7EB",
+    accentDot: "bg-gray-100 border border-gray-400",
+    pdfBg: [1, 1, 1],
+    pdfBorder: [0.90, 0.91, 0.92],
+    pdfTitle: [0.07, 0.09, 0.15],
+    pdfSub: [0.42, 0.45, 0.50],
+    pdfPhone: [0.07, 0.09, 0.15],
+  },
+  {
+    id: "blue",
+    name: "Safir Mavisi",
+    desc: "Modern mavi",
+    headerColor: "#38BDF8",
+    subColor: "#93C5FD",
+    cardBg: "#0B132B",
+    qrPadBg: "#FFFFFF",
+    textColor: "#F0F9FF",
+    borderColor: "#1C2541",
+    accentDot: "bg-[#38BDF8] ring-2 ring-cyan-400/40",
+    pdfBg: [0.04, 0.07, 0.17],
+    pdfBorder: [0.11, 0.15, 0.25],
+    pdfTitle: [0.22, 0.74, 0.97],
+    pdfSub: [0.58, 0.77, 0.99],
+    pdfPhone: [0.94, 0.98, 1.0],
+  },
+  {
+    id: "gold",
+    name: "Lüks Altın",
+    desc: "Asil amber",
+    headerColor: "#F59E0B",
+    subColor: "#D97706",
+    cardBg: "#141416",
+    qrPadBg: "#FFFFFF",
+    textColor: "#FEF3C7",
+    borderColor: "#3F2812",
+    accentDot: "bg-[#F59E0B] ring-2 ring-amber-400/40",
+    pdfBg: [0.08, 0.08, 0.09],
+    pdfBorder: [0.25, 0.16, 0.07],
+    pdfTitle: [0.96, 0.62, 0.04],
+    pdfSub: [0.85, 0.47, 0.02],
+    pdfPhone: [1.0, 0.95, 0.78],
+  },
+];
+
+/**
+ * Pure vector PDF generator for 70 x 110 mm (7 x 11 cm) card with theme support.
+ */
+function buildCardPdfBlob(qrUrl, formattedPhone, showPhone, theme = CARD_THEMES[0]) {
   const qr = QRCode.create(qrUrl, { errorCorrectionLevel: "M" });
   const count = qr.modules.size;
 
@@ -23,12 +97,27 @@ function buildCardPdfBlob(qrUrl, formattedPhone, showPhone) {
 
   let streamContent = "";
 
-  // White Background
-  streamContent += `1 1 1 rg 0 0 ${pageW.toFixed(2)} ${pageH.toFixed(2)} re f\n`;
+  // Card Background
+  const [bgR, bgG, bgB] = theme.pdfBg;
+  streamContent += `${bgR} ${bgG} ${bgB} rg 0 0 ${pageW.toFixed(2)} ${pageH.toFixed(2)} re f\n`;
+
+  // Border
+  const [brR, brG, brB] = theme.pdfBorder;
+  streamContent += `${brR} ${brG} ${brB} RG 1.5 w 4 4 ${(pageW - 8).toFixed(2)} ${(pageH - 8).toFixed(2)} re S\n`;
 
   // Header Title 'NUMARATIK'
-  streamContent += `BT /F1 10 Tf 0.05 0.05 0.05 rg ${(pageW / 2 - 32).toFixed(2)} ${(pageH - 36).toFixed(2)} Td (NUMARATIK) Tj ET\n`;
-  streamContent += `BT /F2 6.5 Tf 0.45 0.45 0.45 rg ${(pageW / 2 - 42).toFixed(2)} ${(pageH - 47).toFixed(2)} Td (Guvenli Arac Iletisimi) Tj ET\n`;
+  const [tR, tG, tB] = theme.pdfTitle;
+  streamContent += `BT /F1 11 Tf ${tR} ${tG} ${tB} rg ${(pageW / 2 - 36).toFixed(2)} ${(pageH - 36).toFixed(2)} Td (NUMARATIK) Tj ET\n`;
+
+  // Header Subtitle 'Guvenli Arac Iletisimi'
+  const [sR, sG, sB] = theme.pdfSub;
+  streamContent += `BT /F2 6.5 Tf ${sR} ${sG} ${sB} rg ${(pageW / 2 - 42).toFixed(2)} ${(pageH - 47).toFixed(2)} Td (Guvenli Arac Iletisimi) Tj ET\n`;
+
+  // High contrast white badge for QR if not classic white
+  if (theme.id !== "classic") {
+    const pad = 6;
+    streamContent += `1 1 1 rg ${(qrX - pad).toFixed(2)} ${(qrY - pad).toFixed(2)} ${(qrSize + pad * 2).toFixed(2)} ${(qrSize + pad * 2).toFixed(2)} re f\n`;
+  }
 
   // Draw QR vector modules in solid black
   streamContent += "0 0 0 rg\n";
@@ -44,13 +133,14 @@ function buildCardPdfBlob(qrUrl, formattedPhone, showPhone) {
 
   // Footer text
   if (showPhone && formattedPhone) {
+    const [phR, phG, phB] = theme.pdfPhone;
     const cleanPhone = formattedPhone.replace(/[^\d+ ]/g, "");
-    const phoneWidth = cleanPhone.length * 6;
+    const phoneWidth = cleanPhone.length * 6.2;
     const phoneX = Math.max(10, (pageW - phoneWidth) / 2);
-    streamContent += `BT /F1 11 Tf 0.05 0.05 0.05 rg ${phoneX.toFixed(2)} ${(qrY - 22).toFixed(2)} Td (${cleanPhone}) Tj ET\n`;
-    streamContent += `BT /F2 6 Tf 0.45 0.45 0.45 rg ${(pageW / 2 - 38).toFixed(2)} ${(qrY - 33).toFixed(2)} Td (Kameranizla okutun) Tj ET\n`;
+    streamContent += `BT /F1 11.5 Tf ${phR} ${phG} ${phB} rg ${phoneX.toFixed(2)} ${(qrY - 22).toFixed(2)} Td (${cleanPhone}) Tj ET\n`;
+    streamContent += `BT /F2 6 Tf ${sR} ${sG} ${sB} rg ${(pageW / 2 - 38).toFixed(2)} ${(qrY - 33).toFixed(2)} Td (Kameranizla okutun) Tj ET\n`;
   } else {
-    streamContent += `BT /F2 7 Tf 0.4 0.4 0.4 rg ${(pageW / 2 - 38).toFixed(2)} ${(qrY - 24).toFixed(2)} Td (Kameranizla okutun) Tj ET\n`;
+    streamContent += `BT /F2 7 Tf ${sR} ${sG} ${sB} rg ${(pageW / 2 - 38).toFixed(2)} ${(qrY - 24).toFixed(2)} Td (Kameranizla okutun) Tj ET\n`;
   }
 
   const streamLen = new TextEncoder().encode(streamContent).length;
@@ -85,15 +175,18 @@ export default function QRCardDesigner({
   phone = null,
   displayName = "Araç",
   defaultShowPhone = true,
+  defaultTheme = "dark",
   onFinish = null,
   finishButtonText = "Yönetim Paneline Git",
 }) {
   const [showPhone, setShowPhone] = useState(defaultShowPhone);
+  const [selectedThemeId, setSelectedThemeId] = useState(defaultTheme);
   const [publicUrl, setPublicUrl] = useState("");
   const [qrSvg, setQrSvg] = useState("");
   const [copied, setCopied] = useState(false);
   const canvasRef = useRef(null);
 
+  const activeTheme = CARD_THEMES.find((t) => t.id === selectedThemeId) || CARD_THEMES[0];
   const formattedPhone = phone ? formatDisplayPhone(phone) : "";
 
   // Derive static public URL
@@ -135,28 +228,38 @@ export default function QRCardDesigner({
     if (!ctx) return;
 
     // Background
-    ctx.fillStyle = "#FFFFFF";
+    ctx.fillStyle = activeTheme.cardBg;
     ctx.fillRect(0, 0, width, height);
 
     // Subtle border
-    ctx.strokeStyle = "#E5E7EB";
-    ctx.lineWidth = 12;
-    ctx.strokeRect(16, 16, width - 32, height - 32);
+    ctx.strokeStyle = activeTheme.borderColor;
+    ctx.lineWidth = 14;
+    ctx.strokeRect(20, 20, width - 40, height - 40);
 
     // Header Title
-    ctx.fillStyle = "#111827";
+    ctx.fillStyle = activeTheme.headerColor;
     ctx.font = "bold 64px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
     ctx.textAlign = "center";
     ctx.fillText("NUMARATİK", width / 2, 220);
 
     // Header Subtitle
-    ctx.fillStyle = "#6B7280";
+    ctx.fillStyle = activeTheme.subColor;
     ctx.font = "500 38px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
     ctx.fillText("Güvenli Araç İletişimi", width / 2, 280);
 
     // Draw QR code onto canvas
     const qrCanvasSize = showPhone ? 920 : 1060;
     const qrY = showPhone ? 380 : 480;
+    const qrX = (width - qrCanvasSize) / 2;
+
+    // White badge if not classic
+    if (activeTheme.id !== "classic") {
+      const pad = 36;
+      ctx.fillStyle = "#FFFFFF";
+      ctx.beginPath();
+      ctx.roundRect(qrX - pad, qrY - pad, qrCanvasSize + pad * 2, qrCanvasSize + pad * 2, 36);
+      ctx.fill();
+    }
 
     const tempCanvas = document.createElement("canvas");
     QRCode.toCanvas(tempCanvas, publicUrl, {
@@ -165,28 +268,27 @@ export default function QRCardDesigner({
       color: { dark: "#000000", light: "#FFFFFF" },
     })
       .then(() => {
-        const qrX = (width - qrCanvasSize) / 2;
         ctx.drawImage(tempCanvas, qrX, qrY, qrCanvasSize, qrCanvasSize);
 
         // Footer
         if (showPhone && formattedPhone) {
-          ctx.fillStyle = "#111827";
+          ctx.fillStyle = activeTheme.textColor;
           ctx.font = "bold 78px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, monospace";
           ctx.textAlign = "center";
           ctx.fillText(formattedPhone, width / 2, qrY + qrCanvasSize + 140);
 
-          ctx.fillStyle = "#6B7280";
+          ctx.fillStyle = activeTheme.subColor;
           ctx.font = "500 36px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
           ctx.fillText("Kameranızla okutun veya arayın", width / 2, qrY + qrCanvasSize + 210);
         } else {
-          ctx.fillStyle = "#6B7280";
+          ctx.fillStyle = activeTheme.subColor;
           ctx.font = "500 42px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
           ctx.textAlign = "center";
           ctx.fillText("Kameranızla okutun", width / 2, qrY + qrCanvasSize + 170);
         }
       })
       .catch(() => {});
-  }, [publicUrl, showPhone, formattedPhone]);
+  }, [publicUrl, showPhone, formattedPhone, activeTheme]);
 
   // PNG Download
   const handleDownloadPNG = () => {
@@ -198,7 +300,7 @@ export default function QRCardDesigner({
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `numaratik-${slug}-7x11cm.png`;
+      a.download = `numaratik-${slug}-${activeTheme.id}-7x11cm.png`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -206,7 +308,7 @@ export default function QRCardDesigner({
     }, "image/png");
   };
 
-  // SVG Download (pure vector)
+  // SVG Download (pure vector with theme colors)
   const handleDownloadSVG = () => {
     if (!publicUrl) return;
 
@@ -232,18 +334,24 @@ export default function QRCardDesigner({
       }
     }
 
+    const whiteBadge =
+      activeTheme.id !== "classic"
+        ? `<rect x="${qrX - 18}" y="${qrY - 18}" width="${qrSize + 36}" height="${qrSize + 36}" rx="24" fill="#FFFFFF" />`
+        : "";
+
     const phoneSvgPart =
       showPhone && formattedPhone
-        ? `<text x="350" y="${qrY + qrSize + 70}" font-family="monospace" font-size="38" font-weight="bold" fill="#111827" text-anchor="middle">${formattedPhone}</text>
-           <text x="350" y="${qrY + qrSize + 105}" font-family="sans-serif" font-size="18" fill="#6B7280" text-anchor="middle">Kameranızla okutun veya arayın</text>`
-        : `<text x="350" y="${qrY + qrSize + 80}" font-family="sans-serif" font-size="20" fill="#6B7280" text-anchor="middle">Kameranızla okutun</text>`;
+        ? `<text x="350" y="${qrY + qrSize + 70}" font-family="monospace" font-size="38" font-weight="bold" fill="${activeTheme.textColor}" text-anchor="middle">${formattedPhone}</text>
+           <text x="350" y="${qrY + qrSize + 105}" font-family="sans-serif" font-size="18" fill="${activeTheme.subColor}" text-anchor="middle">Kameranızla okutun veya arayın</text>`
+        : `<text x="350" y="${qrY + qrSize + 80}" font-family="sans-serif" font-size="20" fill="${activeTheme.subColor}" text-anchor="middle">Kameranızla okutun</text>`;
 
     const svgContent = `<?xml version="1.0" encoding="UTF-8"?>
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${viewBoxW} ${viewBoxH}" width="70mm" height="110mm">
-  <rect width="${viewBoxW}" height="${viewBoxH}" fill="#FFFFFF" />
-  <rect x="8" y="8" width="${viewBoxW - 16}" height="${viewBoxH - 16}" fill="none" stroke="#E5E7EB" stroke-width="6" rx="24" />
-  <text x="350" y="110" font-family="sans-serif" font-size="32" font-weight="bold" fill="#111827" text-anchor="middle">NUMARATİK</text>
-  <text x="350" y="140" font-family="sans-serif" font-size="19" fill="#6B7280" text-anchor="middle">Güvenli Araç İletişimi</text>
+  <rect width="${viewBoxW}" height="${viewBoxH}" fill="${activeTheme.cardBg}" />
+  <rect x="8" y="8" width="${viewBoxW - 16}" height="${viewBoxH - 16}" fill="none" stroke="${activeTheme.borderColor}" stroke-width="6" rx="24" />
+  <text x="350" y="110" font-family="sans-serif" font-size="32" font-weight="bold" fill="${activeTheme.headerColor}" text-anchor="middle">NUMARATİK</text>
+  <text x="350" y="140" font-family="sans-serif" font-size="19" fill="${activeTheme.subColor}" text-anchor="middle">Güvenli Araç İletişimi</text>
+  ${whiteBadge}
   <path d="${pathD}" fill="#000000" />
   ${phoneSvgPart}
 </svg>`;
@@ -252,21 +360,21 @@ export default function QRCardDesigner({
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `numaratik-${slug}-7x11cm.svg`;
+    a.download = `numaratik-${slug}-${activeTheme.id}-7x11cm.svg`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
   };
 
-  // PDF Download (pure vector 70 x 110 mm)
+  // PDF Download (pure vector 70 x 110 mm with theme)
   const handleDownloadPDF = () => {
     if (!publicUrl) return;
-    const blob = buildCardPdfBlob(publicUrl, formattedPhone, showPhone);
+    const blob = buildCardPdfBlob(publicUrl, formattedPhone, showPhone, activeTheme);
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `numaratik-${slug}-baski-7x11cm.pdf`;
+    a.download = `numaratik-${slug}-${activeTheme.id}-baski-7x11cm.pdf`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -292,22 +400,39 @@ export default function QRCardDesigner({
           Baskı Önizlemesi (7 × 11 cm)
         </div>
 
-        <div className="relative w-[210px] h-[330px] rounded-[18px] bg-white text-black p-4 shadow-2xl flex flex-col items-center justify-between border border-gray-200 select-none">
+        <div
+          className="relative w-[210px] h-[330px] rounded-[18px] p-4 shadow-2xl flex flex-col items-center justify-between select-none transition-colors duration-200"
+          style={{
+            backgroundColor: activeTheme.cardBg,
+            borderColor: activeTheme.borderColor,
+            borderWidth: 1,
+            borderStyle: "solid",
+          }}
+        >
           {/* Card Header */}
           <div className="flex flex-col items-center pt-2">
-            <span className="text-[13px] font-extrabold tracking-wider text-black">
+            <span
+              className="text-[13px] font-extrabold tracking-wider"
+              style={{ color: activeTheme.headerColor }}
+            >
               NUMARATİK
             </span>
-            <span className="text-[9px] text-gray-500 font-medium -mt-0.5">
+            <span
+              className="text-[9px] font-medium -mt-0.5"
+              style={{ color: activeTheme.subColor }}
+            >
               Güvenli Araç İletişimi
             </span>
           </div>
 
           {/* QR Code Container */}
           <div
-            className={`flex items-center justify-center p-2 rounded-xl bg-white border border-gray-100 ${
+            className={`flex items-center justify-center p-2 rounded-xl bg-white ${
               showPhone ? "w-[150px] h-[150px]" : "w-[174px] h-[174px]"
             }`}
+            style={{
+              boxShadow: activeTheme.id !== "classic" ? "0 4px 12px rgba(0,0,0,0.35)" : "none",
+            }}
           >
             {qrSvg ? (
               <div
@@ -323,19 +448,58 @@ export default function QRCardDesigner({
           <div className="flex flex-col items-center pb-2 text-center">
             {showPhone && formattedPhone ? (
               <>
-                <span className="text-[13px] font-bold text-gray-900 font-mono tracking-tight">
+                <span
+                  className="text-[13px] font-bold font-mono tracking-tight"
+                  style={{ color: activeTheme.textColor }}
+                >
                   {formattedPhone}
                 </span>
-                <span className="text-[8px] text-gray-500 mt-0.5">
+                <span
+                  className="text-[8px] mt-0.5"
+                  style={{ color: activeTheme.subColor }}
+                >
                   Kameranızla okutun veya arayın
                 </span>
               </>
             ) : (
-              <span className="text-[9px] text-gray-500 font-medium">
+              <span
+                className="text-[9px] font-medium"
+                style={{ color: activeTheme.subColor }}
+              >
                 Kameranızla okutun
               </span>
             )}
           </div>
+        </div>
+      </div>
+
+      {/* Theme Selector Pills */}
+      <div className="w-full max-w-[340px] flex flex-col gap-2">
+        <span className="text-[11px] font-semibold tracking-wider uppercase text-[#98A2B3] px-1">
+          Kart Rengi & Tasarımı
+        </span>
+        <div className="grid grid-cols-2 gap-2">
+          {CARD_THEMES.map((t) => {
+            const isSelected = t.id === selectedThemeId;
+            return (
+              <button
+                key={t.id}
+                type="button"
+                onClick={() => setSelectedThemeId(t.id)}
+                className={`py-2 px-3 rounded-xl border text-left flex items-center gap-2.5 transition-all ${
+                  isSelected
+                    ? "bg-white/[0.08] border-[#3B82F6] text-[#F7F9FC] shadow-sm ring-1 ring-[#3B82F6]/50"
+                    : "bg-[#0E131C] border-white/[0.06] text-[#98A2B3] hover:text-[#F7F9FC] hover:border-white/[0.12]"
+                }`}
+              >
+                <span className={`w-3.5 h-3.5 rounded-full shrink-0 ${t.accentDot}`} />
+                <div className="flex flex-col min-w-0">
+                  <span className="text-xs font-medium truncate">{t.name}</span>
+                  <span className="text-[10px] text-[#98A2B3]/70 truncate">{t.desc}</span>
+                </div>
+              </button>
+            );
+          })}
         </div>
       </div>
 

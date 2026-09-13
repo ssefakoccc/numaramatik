@@ -24,6 +24,7 @@ import {
 import Link from "next/link";
 import { formatDisplayPhone, normalizePhoneNumber } from "@/lib/phone";
 import QRCardDesigner from "@/components/qr/QRCardDesigner";
+import { setStoredOwnerSlug, clearStoredOwnerSlug } from "@/lib/useOwnerSlug";
 
 function formatEventDate(dateString) {
   try {
@@ -105,6 +106,9 @@ export default function AdminCardView({ slug = "arac" }) {
         if (mounted && res.ok && data?.success) {
           if (data.phoneNumber) setCurrentPhone(data.phoneNumber);
           if (data.displayName) setDisplayName(data.displayName);
+          if (slug) {
+            setStoredOwnerSlug(slug);
+          }
         }
       } catch {
         // Graceful error
@@ -381,14 +385,26 @@ export default function AdminCardView({ slug = "arac" }) {
       />
 
       <div className="w-full max-w-[420px] relative z-10 flex flex-col items-center">
-        {/* Back Link */}
-        <Link
-          href={cardPublicUrl}
-          className="self-start mb-5 inline-flex items-center gap-1.5 text-xs text-[#98A2B3] hover:text-[#F7F9FC] transition-colors"
-        >
-          <ArrowLeft className="w-3.5 h-3.5" />
-          <span>Karta Dön ({displayName})</span>
-        </Link>
+        {/* Top Navigation Bar */}
+        <div className="w-full flex items-center justify-between mb-5 px-1">
+          <Link
+            href={cardPublicUrl}
+            className="inline-flex items-center gap-1.5 text-xs text-[#98A2B3] hover:text-[#F7F9FC] transition-colors"
+          >
+            <ArrowLeft className="w-3.5 h-3.5" />
+            <span>Karta Dön ({displayName})</span>
+          </Link>
+
+          <Link
+            href="/admin?switch=1"
+            onClick={() => {
+              clearStoredOwnerSlug();
+            }}
+            className="inline-flex items-center gap-1 text-[11px] text-[#98A2B3] hover:text-[#60A5FA] transition-colors"
+          >
+            <span>Farklı Araç ⇄</span>
+          </Link>
+        </div>
 
         {/* Main Card */}
         <div className="w-full bg-[#080B12] border border-white/[0.08] rounded-[32px] p-6 sm:p-7 shadow-2xl flex flex-col items-center text-center">

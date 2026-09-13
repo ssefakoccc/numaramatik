@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import QRCardDesigner from "@/components/qr/QRCardDesigner";
+import { setStoredOwnerSlug } from "@/lib/useOwnerSlug";
 
 export default function ActivationPage({ params }) {
   const unwrappedParams = use(params);
@@ -32,6 +33,7 @@ export default function ActivationPage({ params }) {
   const [verifying, setVerifying] = useState(true);
   const [tokenValid, setTokenValid] = useState(false);
   const [tokenError, setTokenError] = useState(null);
+  const [alreadyActivatedInfo, setAlreadyActivatedInfo] = useState(null);
 
   // Wizard Step: 1 = Info, 2 = Password, 3 = Telegram (optional), 4 = QR Download
   const [step, setStep] = useState(1);
@@ -79,6 +81,12 @@ export default function ActivationPage({ params }) {
           if (res.ok && data?.valid) {
             setTokenValid(true);
             setDisplayName(data.displayName || "");
+          } else if (data?.alreadyActivated) {
+            setAlreadyActivatedInfo({
+              slug: data.slug,
+              displayName: data.displayName || "Araç",
+            });
+            setStoredOwnerSlug(data.slug);
           } else {
             setTokenError(data?.error || "Aktivasyon kodu geçersiz veya süresi dolmuş.");
           }
@@ -141,6 +149,7 @@ export default function ActivationPage({ params }) {
       const data = await res.json();
       if (res.ok && data?.success) {
         setActivatedSlug(data.slug);
+        setStoredOwnerSlug(data.slug);
         setStep(3); // Advance to Telegram optional step
       } else {
         setStepError(data?.error || "Aktivasyon tamamlanamadı.");
@@ -264,7 +273,40 @@ export default function ActivationPage({ params }) {
             </div>
           )}
 
-          {!verifying && tokenError && (
+          {!verifying && alreadyActivatedInfo && (
+            <div className="w-full p-6 rounded-2xl bg-[#0E131C] border border-emerald-500/20 text-center flex flex-col items-center gap-3.5">
+              <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
+                <CheckCircle2 className="w-6 h-6" />
+              </div>
+              <div>
+                <h2 className="text-base font-semibold text-[#F7F9FC]">Bu Araç Kartı Zaten Kurulmuş</h2>
+                <p className="text-xs text-[#98A2B3] mt-1.5 max-w-[320px] leading-relaxed">
+                  <strong className="text-[#F7F9FC]">{alreadyActivatedInfo.displayName}</strong> kartınız başarıyla aktif edilmiştir. Ayarlarınızı yönetmek veya QR kodunuzu tekrar indirmek için yönetim panelinize gidebilirsiniz.
+                </p>
+              </div>
+
+              <div className="w-full flex flex-col gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => router.push(`/admin/${alreadyActivatedInfo.slug}`)}
+                  className="w-full py-3 px-4 rounded-2xl bg-[#3B82F6] hover:bg-[#2563EB] text-white text-xs font-semibold tracking-wide transition-all shadow-lg shadow-blue-500/10 flex items-center justify-center gap-2 active:scale-[0.98]"
+                >
+                  <Shield className="w-4 h-4" />
+                  <span>Yönetim Paneline Git</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => router.push(`/c/${alreadyActivatedInfo.slug}`)}
+                  className="w-full py-2.5 px-4 rounded-2xl bg-white/[0.05] hover:bg-white/[0.08] text-[#98A2B3] hover:text-[#F7F9FC] text-xs font-medium transition-colors flex items-center justify-center gap-2"
+                >
+                  <span>QR Sayfasını Aç</span>
+                </button>
+              </div>
+            </div>
+          )}
+
+          {!verifying && !alreadyActivatedInfo && tokenError && (
             <div className="w-full p-5 rounded-2xl bg-[#0E131C] border border-red-500/20 text-center flex flex-col items-center gap-3">
               <AlertCircle className="w-6 h-6 text-red-400" />
               <h2 className="text-sm font-semibold text-[#F7F9FC]">Aktivasyon Başarısız</h2>
