@@ -2,17 +2,24 @@ import crypto from "crypto";
 import { getAdminServerClient } from "@/lib/supabase/admin-server";
 import { normalizePhoneNumber } from "@/lib/phone";
 import { hashPassword, createCardSessionToken } from "@/lib/security/card-auth";
+import { slugify, isReservedSlug } from "@/lib/slug";
 
 export const dynamic = "force-dynamic";
 
 /**
- * Generates a unique, collision-free vehicle slug.
+ * Resolves a unique slug, avoiding collisions and reserved words.
  */
-async function generateUniqueSlug(supabase) {
-  for (let attempt = 0; attempt < 5; attempt++) {
-    const randomHex = crypto.randomBytes(4).toString("hex"); // e.g. 'c4a819df'
-    const candidateSlug = `card-${randomHex}`;
+async function resolveUniqueSlug(supabase, requestedSlug) {
+  let baseSlug = slugify(requestedSlug);
 
+  if (!baseSlug || isReservedSlug(baseSlug)) {
+    baseSlug = baseSlug ? `${baseSlug}-arac` : `card-${crypto.randomBytes(4).toString("hex")}`;
+  }
+
+  let candidateSlug = baseSlug;
+  let counter = 1;
+
+  while (counter <= 20) {
     const { data: existing } = await supabase
       .from("vehicle_card")
       .select("slug")
@@ -22,9 +29,13 @@ async function generateUniqueSlug(supabase) {
     if (!existing) {
       return candidateSlug;
     }
+
+    counter++;
+    candidateSlug = `${baseSlug}-${counter}`;
   }
-  // Fallback with timestamp in extreme case
-  return `card-${Date.now().toString(36)}`;
+
+  // Fallback in extreme collision case
+  return `${baseSlug}-${Date.now().toString(36)}`;
 }
 
 export async function POST(req) {
@@ -36,7 +47,7 @@ export async function POST(req) {
       return Response.json({ success: false, error: "Geçersiz istek biçimi." }, { status: 400 });
     }
 
-    const { displayName, phone, adminPassword } = body;
+    const { displayName, phone, adminPassword, customSlug } = body;
 
     // 1. Validate Phone
     const normalizedPhone = normalizePhoneNumber(phone);
@@ -66,8 +77,9 @@ export async function POST(req) {
       }, { status: 503 });
     }
 
-    // 4. Generate Unique Slug
-    const slug = await generateUniqueSlug(supabase);
+    // 4. Resolve Unique Slug
+    const requested = (customSlug && typeof customSlug === "string" && customSlug.trim()) || cleanName;
+    const slug = await resolveUniqueSlug(supabase, requested);
 
     // 5. Hash Password
     const { hash, salt } = hashPassword(adminPassword.trim());
@@ -97,7 +109,6 @@ export async function POST(req) {
 
     if (credErr) {
       console.error("[Register] credentials insert error:", credErr.message);
-      // Clean up orphaned card
       await supabase.from("vehicle_card").delete().eq("slug", slug);
       return Response.json({
         success: false,
@@ -105,7 +116,22 @@ export async function POST(req) {
       }, { status: 500 });
     }
 
-    // 8. Create Authenticated Session Token
+    // 8. Generate & Store Recovery Code for Password Reset
+    const rawRecoveryCode = `RC-${crypto.randomBytes(3).toString("hex").toUpperCase()}`;
+    const recoveryHash = crypto.createHash("sha256").update(`recovery:${rawRecoveryCode}`).digest("hex");
+    const recoveryExpires = new Date(Date.now() + 10 * 365 * 24 * 60 * 60 * 1000).toISOString(); // 10 years
+
+    try {
+      await supabase.from("card_activation_tokens").insert({
+        vehicle_slug: slug,
+        token_hash: recoveryHash,
+        expires_at: recoveryExpires,
+      });
+    } catch (tokenErr) {
+      console.error("[Register] recovery token save error:", tokenErr);
+    }
+
+    // 9. Create Authenticated Session Token
     const sessionToken = createCardSessionToken(slug);
 
     const headers = {};
@@ -118,6 +144,7 @@ export async function POST(req) {
       slug,
       displayName: cleanName,
       phoneNumber: normalizedPhone,
+      recoveryCode: rawRecoveryCode,
       message: "Araç kartı başarıyla oluşturuldu!",
     }, { status: 201, headers });
   } catch (err) {

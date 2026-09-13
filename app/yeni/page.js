@@ -18,11 +18,13 @@ import {
   Sparkles,
   Check,
   Car,
+  Copy,
 } from "lucide-react";
 import Link from "next/link";
 import QRCardDesigner from "@/components/qr/QRCardDesigner";
 import { setStoredOwnerSlug } from "@/lib/useOwnerSlug";
 import { normalizePhoneNumber } from "@/lib/phone";
+import { slugify } from "@/lib/slug";
 
 export default function YeniAracPage() {
   // Wizard Step: 1 = Register Info, 2 = Telegram (Optional), 3 = Card Ready & Download
@@ -30,6 +32,8 @@ export default function YeniAracPage() {
 
   // Step 1 Form States
   const [displayName, setDisplayName] = useState("");
+  const [customSlug, setCustomSlug] = useState("");
+  const [slugManuallyEdited, setSlugManuallyEdited] = useState(false);
   const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
   const [passwordConfirm, setPasswordConfirm] = useState("");
@@ -41,6 +45,8 @@ export default function YeniAracPage() {
   const [createdSlug, setCreatedSlug] = useState(null);
   const [confirmedName, setConfirmedName] = useState("");
   const [confirmedPhone, setConfirmedPhone] = useState("");
+  const [recoveryCode, setRecoveryCode] = useState(null);
+  const [copiedRecovery, setCopiedRecovery] = useState(false);
 
   // Step 2 Telegram States
   const [showBotSetup, setShowBotSetup] = useState(false);
@@ -87,6 +93,7 @@ export default function YeniAracPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           displayName: displayName.trim() || "Araç",
+          customSlug: customSlug.trim(),
           phone: normalized,
           adminPassword: password.trim(),
         }),
@@ -97,6 +104,9 @@ export default function YeniAracPage() {
         setCreatedSlug(data.slug);
         setConfirmedName(data.displayName || "Araç");
         setConfirmedPhone(data.phoneNumber || normalized);
+        if (data.recoveryCode) {
+          setRecoveryCode(data.recoveryCode);
+        }
         // Persist on this device so admin knows this vehicle
         setStoredOwnerSlug(data.slug);
         // Move to Telegram step
@@ -248,12 +258,41 @@ export default function YeniAracPage() {
                   <input
                     type="text"
                     value={displayName}
-                    onChange={(e) => setDisplayName(e.target.value)}
-                    placeholder="Örn: 34 ABC 123 veya Aracım"
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setDisplayName(val);
+                      if (!slugManuallyEdited) {
+                        setCustomSlug(slugify(val));
+                      }
+                    }}
+                    placeholder="Örn: Tiggo 7 Pro veya 34 ABC 123"
                     maxLength={40}
                     className="w-full pl-10 pr-4 py-3 bg-[#0E131C] border border-white/[0.08] rounded-2xl text-[#F7F9FC] placeholder-[#98A2B3]/50 text-sm focus:outline-none focus:border-[#3B82F6] transition-colors"
                   />
                 </div>
+              </div>
+
+              {/* Özel Araç Linki (Otomatik Oluşturulan / Düzenlenebilir) */}
+              <div>
+                <label className="block text-[11px] font-medium text-[#98A2B3] uppercase tracking-wider mb-1.5">
+                  Özel Araç Linkiniz
+                </label>
+                <div className="flex items-center px-3.5 py-2.5 bg-[#0E131C] border border-white/[0.08] rounded-2xl text-xs text-[#98A2B3] focus-within:border-[#3B82F6] transition-colors">
+                  <span className="font-mono text-[#667085] select-none text-[11px] sm:text-xs">numaratik.vercel.app/</span>
+                  <input
+                    type="text"
+                    value={customSlug}
+                    onChange={(e) => {
+                      setCustomSlug(slugify(e.target.value));
+                      setSlugManuallyEdited(true);
+                    }}
+                    placeholder="tiggo7pro"
+                    className="flex-1 bg-transparent text-[#60A5FA] font-mono text-xs focus:outline-none pl-1"
+                  />
+                </div>
+                <span className="text-[10px] text-[#98A2B3] mt-1 block">
+                  Karekodunuz ve yönetim linkiniz bu adresten oluşacaktır.
+                </span>
               </div>
 
               {/* İletişim Numarası */}
@@ -537,6 +576,38 @@ export default function YeniAracPage() {
                 Yönetim →
               </Link>
             </div>
+
+            {/* Kurtarma Kodu (Şifre Sıfırlama İçin) */}
+            {recoveryCode && (
+              <div className="w-full bg-[#080B12] border border-amber-500/30 rounded-[24px] p-4 shadow-xl text-left flex flex-col gap-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2 text-amber-400 font-semibold text-xs">
+                    <KeyRound className="w-4 h-4" />
+                    <span>Şifre Kurtarma Kodunuz</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (navigator?.clipboard?.writeText) {
+                        navigator.clipboard.writeText(recoveryCode);
+                        setCopiedRecovery(true);
+                        setTimeout(() => setCopiedRecovery(false), 2000);
+                      }
+                    }}
+                    className="flex items-center gap-1 text-[11px] text-[#3B82F6] hover:text-[#60A5FA] font-medium transition-colors"
+                  >
+                    <Copy className="w-3 h-3" />
+                    <span>{copiedRecovery ? "Kopyalandı!" : "Kodu Kopyala"}</span>
+                  </button>
+                </div>
+                <div className="font-mono text-sm tracking-widest font-bold text-[#F7F9FC] bg-white/[0.04] px-3.5 py-2 rounded-xl border border-white/[0.06] select-all">
+                  {recoveryCode}
+                </div>
+                <p className="text-[11px] text-[#98A2B3] leading-relaxed">
+                  Şifrenizi unutmanız durumunda bu kod ile yönetim panelinizi kurtarabilirsiniz. Lütfen bu kodu güvenli bir yere kaydedin.
+                </p>
+              </div>
+            )}
 
             {/* Official QR Card Designer with Downloads */}
             <div className="w-full bg-[#080B12] border border-white/[0.08] rounded-[32px] p-5 sm:p-6 shadow-2xl flex flex-col items-center">

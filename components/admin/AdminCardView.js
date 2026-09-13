@@ -19,9 +19,12 @@ import {
   Unlink,
   ExternalLink,
   Bot,
-  ChevronRight
+  ChevronRight,
+  Trash2,
+  X,
 } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { formatDisplayPhone, normalizePhoneNumber } from "@/lib/phone";
 import QRCardDesigner from "@/components/qr/QRCardDesigner";
 import { setStoredOwnerSlug, clearStoredOwnerSlug } from "@/lib/useOwnerSlug";
@@ -43,6 +46,7 @@ function formatEventDate(dateString) {
 }
 
 export default function AdminCardView({ slug = "arac" }) {
+  const router = useRouter();
   const [displayName, setDisplayName] = useState(slug === "arac" ? "Araç" : slug);
   const [currentPhone, setCurrentPhone] = useState(null);
   const [newPhone, setNewPhone] = useState("");
@@ -51,6 +55,24 @@ export default function AdminCardView({ slug = "arac" }) {
   const [loading, setLoading] = useState(false);
   const [fetchingCurrent, setFetchingCurrent] = useState(true);
   const [status, setStatus] = useState(null);
+
+  // Forgot Password states
+  const [showForgotModal, setShowForgotModal] = useState(false);
+  const [forgotStep, setForgotStep] = useState(1);
+  const [forgotPhone, setForgotPhone] = useState("");
+  const [forgotCode, setForgotCode] = useState("");
+  const [forgotPass, setForgotPass] = useState("");
+  const [forgotPassConfirm, setForgotPassConfirm] = useState("");
+  const [forgotLoading, setForgotLoading] = useState(false);
+  const [forgotError, setForgotError] = useState(null);
+  const [forgotSuccess, setForgotSuccess] = useState(null);
+  const [forgotMethod, setForgotMethod] = useState("telegram");
+
+  // Delete Vehicle states
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteConfirmPass, setDeleteConfirmPass] = useState("");
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const [deleteError, setDeleteError] = useState(null);
 
   // Telegram states
   const [tgLoading, setTgLoading] = useState(false);
@@ -374,6 +396,118 @@ export default function AdminCardView({ slug = "arac" }) {
     }
   };
 
+  // Forgot Password Step 1: Request Code
+  const handleForgotRequest = async (e) => {
+    e?.preventDefault();
+    setForgotError(null);
+    setForgotSuccess(null);
+    const cleanPhone = forgotPhone.trim();
+    if (!cleanPhone) {
+      setForgotError("Lütfen kayıtlı telefon numaranızı girin.");
+      return;
+    }
+    setForgotLoading(true);
+    try {
+      const res = await fetch("/api/admin/password-reset/request", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ slug, phone: cleanPhone }),
+      });
+      const data = await res.json();
+      if (res.ok && data?.success) {
+        setForgotMethod(data.method);
+        setForgotStep(2);
+        setForgotSuccess(data.message);
+      } else {
+        setForgotError(data?.error || "Kod gönderilemedi.");
+      }
+    } catch {
+      setForgotError("Sunucuya bağlanılamadı.");
+    } finally {
+      setForgotLoading(false);
+    }
+  };
+
+  // Forgot Password Step 2: Confirm Reset
+  const handleForgotConfirm = async (e) => {
+    e?.preventDefault();
+    setForgotError(null);
+    setForgotSuccess(null);
+    if (!forgotCode.trim()) {
+      setForgotError("Lütfen doğrulama kodunu girin.");
+      return;
+    }
+    if (!forgotPass || forgotPass.length < 6) {
+      setForgotError("Yeni şifre en az 6 karakter olmalıdır.");
+      return;
+    }
+    if (forgotPass !== forgotPassConfirm) {
+      setForgotError("Şifreler birbiriyle eşleşmiyor.");
+      return;
+    }
+    setForgotLoading(true);
+    try {
+      const res = await fetch("/api/admin/password-reset/confirm", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          slug,
+          resetCode: forgotCode.trim(),
+          newPassword: forgotPass.trim(),
+        }),
+      });
+      const data = await res.json();
+      if (res.ok && data?.success) {
+        setForgotSuccess("Şifreniz başarıyla güncellendi! Giriş yapılıyor...");
+        setSecretKey(forgotPass.trim());
+        setTimeout(() => {
+          setShowForgotModal(false);
+          setForgotStep(1);
+          setForgotCode("");
+          setForgotPass("");
+          setForgotPassConfirm("");
+          fetchTelegramStatus(forgotPass.trim());
+        }, 1200);
+      } else {
+        setForgotError(data?.error || "Şifre güncellenemedi.");
+      }
+    } catch {
+      setForgotError("Sunucuya bağlanılamadı.");
+    } finally {
+      setForgotLoading(false);
+    }
+  };
+
+  // Delete Vehicle Handler
+  const handleDeleteVehicle = async (e) => {
+    e?.preventDefault();
+    setDeleteError(null);
+    const pass = (deleteConfirmPass || secretKey).trim();
+    if (!pass) {
+      setDeleteError("Lütfen onaylamak için admin şifrenizi girin.");
+      return;
+    }
+    setDeleteLoading(true);
+    try {
+      const res = await fetch("/api/admin/vehicle/delete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ slug, secretKey: pass }),
+      });
+      const data = await res.json();
+      if (res.ok && data?.success) {
+        clearStoredOwnerSlug();
+        router.push("/yeni");
+      } else {
+        setDeleteError(data?.error || "Araç silinemedi. Şifrenizi kontrol edin.");
+      }
+    } catch {
+      setDeleteError("Sunucuya bağlanılamadı.");
+    } finally {
+      setDeleteLoading(false);
+    }
+  };
+
   const cardPublicUrl = slug === "arac" ? "/" : `/c/${slug}`;
 
   return (
@@ -509,6 +643,20 @@ export default function AdminCardView({ slug = "arac" }) {
                   aria-label={showPassword ? "Şifreyi gizle" : "Şifreyi göster"}
                 >
                   {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+              <div className="flex justify-end mt-1.5 px-1">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowForgotModal(true);
+                    setForgotStep(1);
+                    setForgotError(null);
+                    setForgotSuccess(null);
+                  }}
+                  className="text-[11px] text-[#3B82F6] hover:text-[#60A5FA] transition-colors font-medium"
+                >
+                  Şifremi Unuttum?
                 </button>
               </div>
             </div>
@@ -878,8 +1026,221 @@ export default function AdminCardView({ slug = "arac" }) {
               </ul>
             )}
           </div>
+
+          {/* Tehlikeli Bölge: Araç Sil */}
+          <div className="w-full mt-6 pt-6 border-t border-red-500/20 text-left">
+            <div className="flex items-center gap-2 text-red-400 mb-1.5">
+              <Trash2 className="w-4 h-4" />
+              <h3 className="text-xs font-semibold">Tehlikeli Bölge</h3>
+            </div>
+            <p className="text-[11px] text-[#98A2B3] mb-3 leading-relaxed">
+              Bu aracı, karekodunu ve geçmiş tüm hareketlerini kalıcı olarak sistemden silebilirsiniz.
+            </p>
+            <button
+              type="button"
+              onClick={() => {
+                setShowDeleteModal(true);
+                setDeleteError(null);
+                setDeleteConfirmPass("");
+              }}
+              className="w-full py-2.5 px-4 rounded-2xl bg-red-500/10 hover:bg-red-500/20 border border-red-500/30 text-red-400 text-xs font-semibold flex items-center justify-center gap-2 transition-colors active:scale-[0.99]"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              <span>Bu Aracı Kalıcı Olarak Sil</span>
+            </button>
+          </div>
         </div>
       </div>
+
+      {/* MODAL: Şifremi Unuttum */}
+      {showForgotModal && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="w-full max-w-[380px] bg-[#080B12] border border-white/[0.1] rounded-[28px] p-6 shadow-2xl relative text-left">
+            <button
+              type="button"
+              onClick={() => setShowForgotModal(false)}
+              className="absolute right-4 top-4 text-[#98A2B3] hover:text-[#F7F9FC] transition-colors p-1"
+            >
+              <X className="w-4 h-4" />
+            </button>
+
+            <div className="flex items-center gap-2.5 mb-4">
+              <div className="w-9 h-9 rounded-xl bg-[#3B82F6]/10 border border-[#3B82F6]/20 flex items-center justify-center text-[#3B82F6]">
+                <KeyRound className="w-4 h-4" />
+              </div>
+              <div>
+                <h3 className="text-sm font-semibold text-[#F7F9FC]">Şifre Sıfırlama</h3>
+                <span className="text-[11px] font-mono text-[#60A5FA]">{displayName} ({slug})</span>
+              </div>
+            </div>
+
+            {forgotError && (
+              <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-xs mb-3 flex items-start gap-2">
+                <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                <span>{forgotError}</span>
+              </div>
+            )}
+
+            {forgotSuccess && (
+              <div className="p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-300 text-xs mb-3 flex items-start gap-2">
+                <CheckCircle2 className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                <span>{forgotSuccess}</span>
+              </div>
+            )}
+
+            {forgotStep === 1 ? (
+              <form onSubmit={handleForgotRequest} className="space-y-3">
+                <p className="text-xs text-[#98A2B3] leading-relaxed">
+                  Lütfen bu araç kartına kayıtlı telefon numaranızı girin.
+                </p>
+                <div>
+                  <label className="block text-[11px] font-medium text-[#98A2B3] mb-1">Kayıtlı Telefon Numarası</label>
+                  <input
+                    type="tel"
+                    required
+                    value={forgotPhone}
+                    onChange={(e) => setForgotPhone(e.target.value)}
+                    placeholder="0544 724 09 92"
+                    className="w-full px-3.5 py-2.5 bg-[#0E131C] border border-white/[0.08] rounded-xl text-xs text-[#F7F9FC] font-mono focus:outline-none focus:border-[#3B82F6]"
+                  />
+                </div>
+                <button
+                  type="submit"
+                  disabled={forgotLoading}
+                  className="w-full py-2.5 px-4 rounded-xl bg-[#3B82F6] hover:bg-[#2563EB] text-white text-xs font-semibold flex items-center justify-center gap-2 transition-colors disabled:opacity-50"
+                >
+                  {forgotLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <span>Doğrulama Kodu Gönder</span>}
+                </button>
+              </form>
+            ) : (
+              <form onSubmit={handleForgotConfirm} className="space-y-3">
+                <div>
+                  <label className="block text-[11px] font-medium text-[#98A2B3] mb-1">
+                    {forgotMethod === "telegram" ? "Telegram Güvenlik Kodu veya Kurtarma Kodu" : "Kurtarma Kodu (RC-...)"}
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={forgotCode}
+                    onChange={(e) => setForgotCode(e.target.value)}
+                    placeholder={forgotMethod === "telegram" ? "6 Haneli Kod veya RC-..." : "RC-XXXXXX"}
+                    className="w-full px-3.5 py-2.5 bg-[#0E131C] border border-white/[0.08] rounded-xl text-xs text-[#F7F9FC] font-mono focus:outline-none focus:border-[#3B82F6]"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-medium text-[#98A2B3] mb-1">Yeni Şifre</label>
+                  <input
+                    type="password"
+                    required
+                    minLength={6}
+                    value={forgotPass}
+                    onChange={(e) => setForgotPass(e.target.value)}
+                    placeholder="En az 6 karakter"
+                    className="w-full px-3.5 py-2.5 bg-[#0E131C] border border-white/[0.08] rounded-xl text-xs text-[#F7F9FC] focus:outline-none focus:border-[#3B82F6]"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-medium text-[#98A2B3] mb-1">Yeni Şifre Tekrarı</label>
+                  <input
+                    type="password"
+                    required
+                    minLength={6}
+                    value={forgotPassConfirm}
+                    onChange={(e) => setForgotPassConfirm(e.target.value)}
+                    placeholder="Şifreyi tekrar yazın"
+                    className="w-full px-3.5 py-2.5 bg-[#0E131C] border border-white/[0.08] rounded-xl text-xs text-[#F7F9FC] focus:outline-none focus:border-[#3B82F6]"
+                  />
+                </div>
+
+                <div className="flex gap-2 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => setForgotStep(1)}
+                    className="flex-1 py-2.5 px-3 rounded-xl bg-white/[0.05] hover:bg-white/[0.08] text-[#98A2B3] text-xs font-medium transition-colors"
+                  >
+                    Geri
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={forgotLoading}
+                    className="flex-1 py-2.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors disabled:opacity-50"
+                  >
+                    {forgotLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <span>Şifreyi Değiştir</span>}
+                  </button>
+                </div>
+              </form>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: Bu Aracı Sil */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="w-full max-w-[380px] bg-[#080B12] border border-red-500/30 rounded-[28px] p-6 shadow-2xl relative text-left">
+            <button
+              type="button"
+              onClick={() => setShowDeleteModal(false)}
+              className="absolute right-4 top-4 text-[#98A2B3] hover:text-[#F7F9FC] transition-colors p-1"
+            >
+              <X className="w-4 h-4" />
+            </button>
+
+            <div className="flex items-center gap-2.5 mb-3 text-red-400">
+              <div className="w-9 h-9 rounded-xl bg-red-500/10 border border-red-500/20 flex items-center justify-center">
+                <Trash2 className="w-4 h-4" />
+              </div>
+              <h3 className="text-sm font-semibold text-[#F7F9FC]">Aracı Kalıcı Olarak Sil</h3>
+            </div>
+
+            <p className="text-xs text-[#98A2B3] mb-4 leading-relaxed">
+              <strong className="text-white">{displayName} ({slug})</strong> kartı, karekodu ve tüm ayarları kalıcı olarak silinecektir. Bu işlem kesinlikle geri alınamaz.
+            </p>
+
+            {deleteError && (
+              <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-xs mb-3 flex items-start gap-2">
+                <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                <span>{deleteError}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleDeleteVehicle} className="space-y-3">
+              <div>
+                <label className="block text-[11px] font-medium text-[#98A2B3] mb-1">
+                  İşlemi Onaylamak İçin Admin Şifreniz
+                </label>
+                <input
+                  type="password"
+                  required
+                  value={deleteConfirmPass}
+                  onChange={(e) => setDeleteConfirmPass(e.target.value)}
+                  placeholder="Admin şifrenizi girin"
+                  className="w-full px-3.5 py-2.5 bg-[#0E131C] border border-white/[0.08] rounded-xl text-xs text-[#F7F9FC] focus:outline-none focus:border-red-500 transition-colors"
+                />
+              </div>
+
+              <div className="flex gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={() => setShowDeleteModal(false)}
+                  className="flex-1 py-2.5 px-3 rounded-xl bg-white/[0.05] hover:bg-white/[0.08] text-[#98A2B3] text-xs font-medium transition-colors"
+                >
+                  Vazgeç
+                </button>
+                <button
+                  type="submit"
+                  disabled={deleteLoading}
+                  className="flex-1 py-2.5 px-3 rounded-xl bg-red-600 hover:bg-red-500 text-white text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors disabled:opacity-50"
+                >
+                  {deleteLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <span>Aracı Sil</span>}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </main>
   );
 }
