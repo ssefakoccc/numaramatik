@@ -395,15 +395,24 @@ export default function AdminCardView({ slug = "arac" }) {
             <span>Karta Dön ({displayName})</span>
           </Link>
 
-          <Link
-            href="/admin?switch=1"
-            onClick={() => {
-              clearStoredOwnerSlug();
-            }}
-            className="inline-flex items-center gap-1 text-[11px] text-[#98A2B3] hover:text-[#60A5FA] transition-colors"
-          >
-            <span>Farklı Araç ⇄</span>
-          </Link>
+          <div className="flex items-center gap-3">
+            <Link
+              href="/yeni"
+              className="inline-flex items-center gap-1 text-[11px] text-[#3B82F6] hover:text-[#60A5FA] font-medium transition-colors"
+            >
+              <span>+ Yeni Araç</span>
+            </Link>
+
+            <Link
+              href="/admin?switch=1"
+              onClick={() => {
+                clearStoredOwnerSlug();
+              }}
+              className="inline-flex items-center gap-1 text-[11px] text-[#98A2B3] hover:text-[#60A5FA] transition-colors"
+            >
+              <span>Farklı Araç ⇄</span>
+            </Link>
+          </div>
         </div>
 
         {/* Main Card */}

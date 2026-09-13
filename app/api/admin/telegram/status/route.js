@@ -23,16 +23,9 @@ async function handleStatus(req, rawSlug, secretKey) {
     .eq("vehicle_slug", auth.slug)
     .single();
 
-  let connected = Boolean(creds && creds.telegram_chat_id);
-  let isLegacy = false;
-  let botUsername = creds?.bot_username || null;
-
-  // Legacy fallback strictly for 'arac' only if no DB credentials exist
-  if (!creds && auth.slug === "arac" && process.env.TELEGRAM_BOT_TOKEN && process.env.TELEGRAM_CHAT_ID) {
-    connected = true;
-    isLegacy = true;
-    botUsername = "LegacyBot";
-  }
+  const connected = Boolean(creds && creds.telegram_chat_id);
+  const isLegacy = false;
+  const botUsername = creds?.bot_username || null;
 
   const { data: pendingCreds } = await auth.supabase
     .from("vehicle_telegram_credentials_pending")

@@ -1,6 +1,19 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  /* config options here */
+  async redirects() {
+    return [
+      {
+        source: "/yeni-arac",
+        destination: "/yeni",
+        permanent: true,
+      },
+      {
+        source: "/kayit",
+        destination: "/yeni",
+        permanent: true,
+      },
+    ];
+  },
 };
 
 export default nextConfig;

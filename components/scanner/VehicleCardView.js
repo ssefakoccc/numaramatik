@@ -236,6 +236,12 @@ export default function VehicleCardView({ slug = "arac" }) {
       {/* Footer / Privacy Assurance */}
       <footer className="w-full max-w-[400px] mt-8 text-center text-[11px] text-[#667085] flex flex-col items-center gap-1.5 z-10">
         <p>Numaratik • Güvenli ve Hızlı Araç İletişim Sistemi</p>
+        <Link
+          href="/yeni"
+          className="text-[11px] text-[#3B82F6] hover:text-[#60A5FA] transition-colors font-medium my-0.5"
+        >
+          + Kendi Aracınız İçin Karekod Oluşturun
+        </Link>
         <p className="text-[10px] text-[#667085]/70">
           Bu sayfada kişisel verileriniz kaydedilmez veya paylaşılmaz.
         </p>

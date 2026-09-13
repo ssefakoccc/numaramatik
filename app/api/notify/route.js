@@ -156,10 +156,6 @@ export async function POST(req) {
       } catch (err) {
         console.error("[Notify] Bot token çözülemedi:", err.message);
       }
-    } else if (slug === "arac" && process.env.TELEGRAM_BOT_TOKEN && process.env.TELEGRAM_CHAT_ID) {
-      // Legacy fallback strictly for 'arac' if no custom bot credentials in DB
-      targetBotToken = process.env.TELEGRAM_BOT_TOKEN;
-      targetChatId = process.env.TELEGRAM_CHAT_ID;
     }
 
     // 4. Fingerprint calculation

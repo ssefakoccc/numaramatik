@@ -48,12 +48,6 @@ export async function POST(req) {
       if (!sent) {
         return Response.json({ success: false, error: "Telegram test bildirimi iletilemedi." }, { status: 502 });
       }
-    } else if (auth.slug === "arac" && process.env.TELEGRAM_BOT_TOKEN && process.env.TELEGRAM_CHAT_ID) {
-      // Legacy fallback for 'arac' only
-      const sent = await sendTelegramMessage(process.env.TELEGRAM_BOT_TOKEN, process.env.TELEGRAM_CHAT_ID, text);
-      if (!sent) {
-        return Response.json({ success: false, error: "Telegram test bildirimi iletilemedi." }, { status: 502 });
-      }
     } else {
       return Response.json({ success: false, error: "Bu araç için bağlı bir Telegram hesabı bulunamadı." }, { status: 400 });
     }

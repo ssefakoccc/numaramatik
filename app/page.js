@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback, useRef } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import ContactHero from '@/components/scanner/ContactHero';
 import ContactActions from '@/components/scanner/ContactActions';
 import QuickMessages, { SCENARIOS } from '@/components/scanner/QuickMessages';
@@ -11,6 +12,7 @@ import { normalizePhoneNumber } from '@/lib/phone';
 import { useOwnerSlug } from '@/lib/useOwnerSlug';
 
 export default function ScannerPage() {
+  const router = useRouter();
   const [phone, setPhone] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -20,6 +22,12 @@ export default function ScannerPage() {
 
   const ownerSlug = useOwnerSlug();
   const isOwner = ownerSlug === 'arac';
+
+  useEffect(() => {
+    if (ownerSlug && ownerSlug !== 'arac') {
+      router.replace(`/c/${ownerSlug}`);
+    }
+  }, [ownerSlug, router]);
 
   // Single, reliable phone data fetcher
   const fetchPhoneData = useCallback(async (isRetry = false) => {
@@ -221,10 +229,18 @@ export default function ScannerPage() {
         </div>
 
         {/* Minimal Footer */}
-        <footer className="mt-6 flex items-center justify-center gap-2 text-[11px] text-[#667085]">
-          <span>Numaratik</span>
-          <span>•</span>
-          <span>Güvenli Araç İletişimi</span>
+        <footer className="mt-6 flex flex-col items-center gap-2 text-[11px] text-[#667085]">
+          <div className="flex items-center justify-center gap-2">
+            <span>Numaratik</span>
+            <span>•</span>
+            <span>Güvenli Araç İletişimi</span>
+          </div>
+          <Link
+            href="/yeni"
+            className="text-[11px] text-[#3B82F6] hover:text-[#60A5FA] transition-colors font-medium"
+          >
+            + Kendi Aracınız İçin Karekod Oluşturun
+          </Link>
         </footer>
       </div>
     </main>
