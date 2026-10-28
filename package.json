@@ -12,6 +12,7 @@
     "test:integration": "node --env-file=.env.local --conditions=react-server scripts/test-integration.mjs"
   },
   "dependencies": {
+    "@opennextjs/cloudflare": "^1.20.14",
     "@supabase/supabase-js": "^2.116.0",
     "canvas-confetti": "^1.9.4",
     "lucide-react": "^1.44.0",
@@ -27,6 +28,7 @@
     "eslint": "^9",
     "eslint-config-next": "16.3.4",
     "postcss": "^8.5.28",
-    "tailwindcss": "^4.3.3"
+    "tailwindcss": "^4.3.3",
+    "wrangler": "^4.154.0"
   }
 }

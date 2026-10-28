@@ -34,8 +34,10 @@ yarn-error.log*
 .env*
 .env.local
 
-# vercel
+# vercel & cloudflare
 .vercel
+.open-next/
+.wrangler/
 
 # typescript
 *.tsbuildinfo
